@@ -15,11 +15,27 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // User::factory(10)->create();
-
-        User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
+        $this->call([
+            RolesAndPermissionsSeeder::class,
         ]);
+
+        // seed data
+        $zones = \App\Models\Zone::factory()->count(5)->create();
+
+        \App\Models\Customer::factory()
+            ->count(50)
+            ->recycle($zones) // Use created zones
+            ->create()
+            ->each(function ($customer) {
+                // Attach subscription
+                \App\Models\Subscription::factory()->create([
+                    'customer_id' => $customer->id,
+                ]);
+
+                // Create some invoices
+                \App\Models\Invoice::factory()->count(rand(1, 5))->create([
+                    'customer_id' => $customer->id,
+                ]);
+            });
     }
 }

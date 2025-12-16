@@ -35,4 +35,16 @@ return [
         ],
     ],
 
+    'paystack' => [
+        'publicKey' => env('PAYSTACK_PUBLIC_KEY'),
+        'secret' => env('PAYSTACK_SECRET_KEY'),
+        'paymentUrl' => env('PAYSTACK_PAYMENT_URL'),
+        'merchantEmail' => env('MERCHANT_EMAIL'),
+    ],
+
+    'mycsms' => [
+        'api_key' => env('MYCSMS_API_KEY'),
+        'sender_id' => env('MYCSMS_SENDER_ID', 'EliteWaste'),
+        'url' => 'https://apiv2.mycsms.com', // Standard endpoint
+    ],
 ];
