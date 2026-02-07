@@ -73,7 +73,7 @@ class ExportController extends Controller
                 break;
 
             case 'customers':
-                $query = Customer::with(['servicePlan', 'zone'])->latest();
+                $query = Customer::with(['subscription.servicePlan', 'zone'])->latest();
                 if (!empty($filters['search'])) {
                     $query->where('name', 'like', '%' . $filters['search'] . '%')
                           ->orWhere('phone', 'like', '%' . $filters['search'] . '%');
@@ -161,7 +161,7 @@ class ExportController extends Controller
                     'phone' => 'Phone',
                     'type' => 'Type',
                     'zone.name' => 'Zone',
-                    'service_plan.name' => 'Plan',
+                    'subscription.servicePlan.name' => 'Plan',
                     'is_active' => 'Active',
                     'balance' => 'Balance'
                 ];
