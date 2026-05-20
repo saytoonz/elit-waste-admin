@@ -123,6 +123,104 @@ class ReportController extends Controller
         return view('reports.audit', compact('logs', 'users'));
     }
 
+    public function expenses(Request $request)
+    {
+        $start = $request->input('start_date', now()->startOfMonth()->toDateString());
+        $end   = $request->input('end_date', now()->endOfMonth()->toDateString());
+
+        $base = \App\Models\Expense::approvedOrPaid()->whereBetween('expense_date', [$start, $end]);
+
+        $total = (clone $base)->sum('total_amount');
+        $count = (clone $base)->count();
+
+        $byCategory = (clone $base)
+            ->selectRaw('expense_category_id, sum(total_amount) as total')
+            ->with('category')
+            ->groupBy('expense_category_id')
+            ->orderByDesc('total')
+            ->get();
+
+        $byVendor = (clone $base)
+            ->selectRaw('vendor_id, sum(total_amount) as total')
+            ->with('vendor')
+            ->groupBy('vendor_id')
+            ->orderByDesc('total')
+            ->limit(20)
+            ->get();
+
+        $byMonth = \App\Models\Expense::approvedOrPaid()
+            ->where('expense_date', '>=', now()->subYear()->startOfMonth())
+            ->selectRaw('DATE_FORMAT(expense_date, "%Y-%m") as month, sum(total_amount) as total')
+            ->groupBy('month')
+            ->orderBy('month')
+            ->get();
+
+        $byMethod = (clone $base)
+            ->selectRaw('payment_method, sum(total_amount) as total')
+            ->groupBy('payment_method')
+            ->orderByDesc('total')
+            ->get();
+
+        return view('reports.expenses', compact('start', 'end', 'total', 'count', 'byCategory', 'byVendor', 'byMonth', 'byMethod'));
+    }
+
+    public function profitLoss(Request $request)
+    {
+        $start = $request->input('start_date', now()->startOfMonth()->toDateString());
+        $end   = $request->input('end_date', now()->endOfMonth()->toDateString());
+
+        $revenue = \App\Models\Payment::where('status', 'Success')
+            ->whereBetween('paid_at', [$start, $end . ' 23:59:59'])
+            ->sum('amount');
+
+        $expensesByCategory = \App\Models\Expense::approvedOrPaid()
+            ->whereBetween('expense_date', [$start, $end])
+            ->selectRaw('expense_category_id, sum(total_amount) as total')
+            ->with('category')
+            ->groupBy('expense_category_id')
+            ->orderByDesc('total')
+            ->get();
+
+        $totalExpenses = $expensesByCategory->sum('total');
+        $netIncome = $revenue - $totalExpenses;
+        $margin = $revenue > 0 ? round(($netIncome / $revenue) * 100, 1) : 0;
+
+        // Monthly trend across this period range, grouped by month
+        $monthlyRevenue = \App\Models\Payment::where('status', 'Success')
+            ->whereBetween('paid_at', [$start, $end . ' 23:59:59'])
+            ->selectRaw('DATE_FORMAT(paid_at, "%Y-%m") as month, sum(amount) as total')
+            ->groupBy('month')->orderBy('month')->pluck('total', 'month');
+
+        $monthlyExpenses = \App\Models\Expense::approvedOrPaid()
+            ->whereBetween('expense_date', [$start, $end])
+            ->selectRaw('DATE_FORMAT(expense_date, "%Y-%m") as month, sum(total_amount) as total')
+            ->groupBy('month')->orderBy('month')->pluck('total', 'month');
+
+        $months = collect(array_merge($monthlyRevenue->keys()->all(), $monthlyExpenses->keys()->all()))->unique()->sort()->values();
+
+        return view('reports.profit_loss', compact(
+            'start', 'end', 'revenue', 'expensesByCategory', 'totalExpenses',
+            'netIncome', 'margin', 'months', 'monthlyRevenue', 'monthlyExpenses'
+        ));
+    }
+
+    public function budgetVariance(Request $request)
+    {
+        $year  = (int) $request->input('year', date('Y'));
+        $month = $request->filled('month') ? (int) $request->month : (int) date('n');
+
+        $budgets = \App\Models\ExpenseBudget::with('category')
+            ->where('year', $year)
+            ->where(function ($q) use ($month) {
+                $q->where('period', 'Monthly')->where('month', $month)
+                  ->orWhere('period', 'Quarterly')->where('quarter', (int) ceil($month / 3))
+                  ->orWhere('period', 'Yearly');
+            })
+            ->get();
+
+        return view('reports.budget_variance', compact('budgets', 'year', 'month'));
+    }
+
     public function approveCash(\App\Models\Payment $payment)
     {
         if ($payment->approved_at) {

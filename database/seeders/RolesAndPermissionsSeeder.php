@@ -29,6 +29,13 @@ class RolesAndPermissionsSeeder extends Seeder
             'payment.create', // Cash collection
             'payment.view',
             'payment.approve', // Cash approval
+            'expense.create',
+            'expense.view',
+            'expense.edit',
+            'expense.delete',
+            'expense.approve',
+            'vendor.manage',
+            'budget.manage',
             'report.view',
             'view audit logs',
             'manage users',
@@ -50,7 +57,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'invoice.view'
         ]);
 
-        // 2. Supervisor (View + manage customers, limited finance)
+        // 2. Supervisor (View + manage customers, limited finance, view expenses)
         $supervisor = Role::firstOrCreate(['name' => 'Supervisor']);
         $supervisor->givePermissionTo([
             'customer.create',
@@ -58,6 +65,9 @@ class RolesAndPermissionsSeeder extends Seeder
             'customer.edit',
             'invoice.view',
             'payment.view',
+            'expense.create',
+            'expense.view',
+            'vendor.manage',
             'report.view'
         ]);
 
@@ -71,6 +81,13 @@ class RolesAndPermissionsSeeder extends Seeder
             'invoice.delete',
             'payment.view',
             'payment.approve',
+            'expense.create',
+            'expense.view',
+            'expense.edit',
+            'expense.delete',
+            'expense.approve',
+            'vendor.manage',
+            'budget.manage',
             'report.view'
         ]);
 

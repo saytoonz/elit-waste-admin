@@ -7,6 +7,8 @@ use App\Models\Customer;
 use App\Models\ServicePlan;
 use App\Models\Invoice;
 use App\Models\Payment;
+use App\Models\Expense;
+use App\Models\Vendor;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -138,6 +140,40 @@ class ExportController extends Controller
                         ->latest();
                 break;
 
+            case 'expenses':
+                $query = Expense::with(['category', 'vendor', 'zone', 'recordedBy'])->latest('expense_date');
+                if (!empty($filters['search'])) {
+                    $s = $filters['search'];
+                    $query->where(function ($q) use ($s) {
+                        $q->where('expense_number', 'like', "%{$s}%")
+                          ->orWhere('description', 'like', "%{$s}%")
+                          ->orWhere('reference', 'like', "%{$s}%");
+                    });
+                }
+                if (!empty($filters['status']))         $query->where('status', $filters['status']);
+                if (!empty($filters['category_id']))    $query->where('expense_category_id', $filters['category_id']);
+                if (!empty($filters['vendor_id']))      $query->where('vendor_id', $filters['vendor_id']);
+                if (!empty($filters['zone_id']))        $query->where('zone_id', $filters['zone_id']);
+                if (!empty($filters['payment_method'])) $query->where('payment_method', $filters['payment_method']);
+                if (!empty($filters['start_date']))     $query->whereDate('expense_date', '>=', $filters['start_date']);
+                if (!empty($filters['end_date']))       $query->whereDate('expense_date', '<=', $filters['end_date']);
+                break;
+
+            case 'vendors':
+                $query = Vendor::withCount('expenses')->withSum('expenses as total_spent', 'total_amount');
+                if (!empty($filters['search'])) {
+                    $s = $filters['search'];
+                    $query->where(function ($q) use ($s) {
+                        $q->where('name', 'like', "%{$s}%")
+                          ->orWhere('phone', 'like', "%{$s}%")
+                          ->orWhere('email', 'like', "%{$s}%");
+                    });
+                }
+                if (!empty($filters['status'])) {
+                    $query->where('is_active', $filters['status'] === 'active');
+                }
+                break;
+
             default:
                 abort(404);
         }
@@ -198,6 +234,32 @@ class ExportController extends Controller
                     'amount' => 'Amount',
                     'recorded_by.name' => 'Collected By',
                     'paid_at' => 'Date Collected'
+                ];
+            case 'expenses':
+                return [
+                    'expense_number'  => 'Expense #',
+                    'expense_date'    => 'Date',
+                    'category.name'   => 'Category',
+                    'vendor.name'     => 'Vendor',
+                    'zone.name'       => 'Zone',
+                    'description'     => 'Description',
+                    'amount'          => 'Amount',
+                    'tax_amount'      => 'Tax',
+                    'total_amount'    => 'Total',
+                    'payment_method'  => 'Method',
+                    'status'          => 'Status',
+                    'recorded_by.name'=> 'Recorded By',
+                ];
+            case 'vendors':
+                return [
+                    'name'           => 'Name',
+                    'contact_person' => 'Contact',
+                    'phone'          => 'Phone',
+                    'email'          => 'Email',
+                    'tax_id'         => 'Tax ID',
+                    'expenses_count' => '# Expenses',
+                    'total_spent'    => 'Total Spent',
+                    'is_active'      => 'Active',
                 ];
             default:
                 return [];

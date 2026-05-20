@@ -48,10 +48,41 @@ Route::middleware('auth')->group(function () {
         Route::get('/revenue', [\App\Http\Controllers\ReportController::class, 'revenue'])->name('revenue');
         Route::get('/payments', [\App\Http\Controllers\ReportController::class, 'payments'])->name('payments');
         Route::get('/audit', [\App\Http\Controllers\ReportController::class, 'audit'])->name('audit');
-        
+
+        // Expense reports
+        Route::get('/expenses', [\App\Http\Controllers\ReportController::class, 'expenses'])->name('expenses');
+        Route::get('/profit-loss', [\App\Http\Controllers\ReportController::class, 'profitLoss'])->name('profit_loss');
+        Route::get('/budget-variance', [\App\Http\Controllers\ReportController::class, 'budgetVariance'])->name('budget_variance');
+
         // Cash Approvals
         Route::get('/cash-approvals', [\App\Http\Controllers\ReportController::class, 'pendingCash'])->name('cash.pending');
         Route::post('/cash-approvals/{payment}', [\App\Http\Controllers\ReportController::class, 'approveCash'])->name('cash.approve');
+    });
+
+    // Expenses
+    Route::resource('expense_categories', \App\Http\Controllers\ExpenseCategoryController::class)->except(['show'])
+        ->middleware('role:Owner|Admin|Accountant');
+    Route::resource('vendors', \App\Http\Controllers\VendorController::class)
+        ->middleware('role:Owner|Admin|Accountant|Supervisor');
+    Route::resource('expense_budgets', \App\Http\Controllers\ExpenseBudgetController::class)->except(['show'])
+        ->middleware('role:Owner|Admin|Accountant');
+    Route::resource('recurring_expenses', \App\Http\Controllers\RecurringExpenseController::class)->except(['show'])
+        ->middleware('role:Owner|Admin|Accountant');
+    Route::post('recurring_expenses/{recurring_expense}/run', [\App\Http\Controllers\RecurringExpenseController::class, 'runNow'])
+        ->name('recurring_expenses.run')
+        ->middleware('role:Owner|Admin|Accountant');
+
+    Route::middleware('role:Owner|Admin|Accountant|Supervisor')->group(function () {
+        Route::resource('expenses', \App\Http\Controllers\ExpenseController::class);
+        Route::get('expenses/{expense}/attachment', [\App\Http\Controllers\ExpenseController::class, 'downloadAttachment'])
+            ->name('expenses.attachment');
+    });
+
+    Route::middleware('role:Owner|Admin|Accountant')->group(function () {
+        Route::post('expenses/{expense}/approve', [\App\Http\Controllers\ExpenseController::class, 'approve'])->name('expenses.approve');
+        Route::post('expenses/{expense}/reject', [\App\Http\Controllers\ExpenseController::class, 'reject'])->name('expenses.reject');
+        Route::post('expenses/{expense}/pay', [\App\Http\Controllers\ExpenseController::class, 'markPaid'])->name('expenses.pay');
+        Route::post('expenses/{expense}/cancel', [\App\Http\Controllers\ExpenseController::class, 'cancel'])->name('expenses.cancel');
     });
 });
 
