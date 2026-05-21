@@ -34,7 +34,7 @@ class SettingsController extends Controller
             'invoiceDueDays'      => $settings['invoice_due_days'] ?? '7',
             'smsApiKey'           => $settings['sms_api_key'] ?? '',
             'smsSenderId'         => $settings['sms_sender_id'] ?? 'EliteWaste',
-            'smsBaseUrl'          => $settings['sms_base_url'] ?? 'https://apiv2.mycsms.com',
+            'smsBaseUrl'          => $settings['sms_base_url'] ?? 'https://app.mycsms.com/api/v3/sms/send',
             'smsWelcomeTemplate'  => $settings['sms_welcome_template'] ?? 'Welcome to Elite Waste, {firstname}! Your account has been created.',
             'undecryptableKeys'   => $undecryptableKeys,
             'providerPaystackConfigured' => !empty(config('services.paystack.provider_secret')),

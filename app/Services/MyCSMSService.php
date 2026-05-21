@@ -5,72 +5,74 @@ namespace App\Services;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
+/**
+ * MyCSMS v3 client.
+ * Docs reference: POST https://app.mycsms.com/api/v3/sms/send
+ * Auth: Bearer <apiKey> in Authorization header.
+ * Body: { phone: [...], sender_id, message, message_type }
+ */
 class MyCSMSService
 {
-    protected $apiKey;
-    protected $senderId;
-    protected $baseUrl;
+    protected ?string $apiKey;
+    protected string $senderId;
+    protected string $baseUrl;
+    protected string $messageType;
 
     public function __construct()
     {
-        $this->apiKey = config('services.mycsms.api_key');
-        $this->senderId = config('services.mycsms.sender_id', 'EliteWaste');
-        // Update default URL based on documentation
-        $this->baseUrl = config('services.mycsms.url', 'https://apiv2.mycsms.com');
+        $this->apiKey      = config('services.mycsms.api_key');
+        $this->senderId    = config('services.mycsms.sender_id', 'EliteWaste');
+        $this->baseUrl     = rtrim(config('services.mycsms.url', 'https://app.mycsms.com/api/v3/sms/send'), '/');
+        $this->messageType = config('services.mycsms.message_type', 'text');
     }
 
     /**
      * Send an SMS message.
      *
-     * @param string $phone The recipient phone number (international format preferred)
-     * @param string $message The message content
-     * @return bool True if queued/sent successfully, False otherwise
+     * @param string|array $phone Recipient phone number(s). Accepts a single string or an array.
+     * @param string $message The message body
+     * @return bool True on HTTP 2xx, false otherwise
      */
-    public function send(string $phone, string $message): bool
+    public function send(string|array $phone, string $message): bool
     {
         if (empty($this->apiKey)) {
-            Log::warning('SMS Service: API Key is missing. Message not sent.');
+            Log::warning('MyCSMS: API Key is missing. Message not sent.');
             return false;
         }
 
-        // Clean phone number
-        $phone = preg_replace('/\s+/', '', $phone);
+        // Normalize phone numbers to an array of strings, stripped of whitespace
+        $phones = is_array($phone) ? $phone : [$phone];
+        $phones = array_values(array_filter(array_map(
+            fn($p) => preg_replace('/\s+/', '', (string) $p),
+            $phones
+        )));
+
+        if (empty($phones)) {
+            Log::warning('MyCSMS: No valid phone numbers provided.');
+            return false;
+        }
 
         try {
-            // Documentation requires JSON payload with specific keys
-            $payload = [
-                'apiKey' => $this->apiKey,
-                'phone' => [$phone], // API expects an array
-                'sender' => $this->senderId,
-                'message' => $message,
-            ];
-
-            // Http::post automatically sends as JSON with 'Content-Type: application/json'
-            $response = Http::post($this->baseUrl, $payload);
+            $response = Http::withToken($this->apiKey)
+                ->acceptJson()
+                ->asJson()
+                ->timeout(15)
+                ->post($this->baseUrl, [
+                    'phone'        => $phones,
+                    'sender_id'    => $this->senderId,
+                    'message'      => $message,
+                    'message_type' => $this->messageType,
+                ]);
 
             if ($response->successful()) {
-                // Check inner response code if available in documentation example
-                // Example response: {"result": [{"responseCode": 10000, "responseMessage": "Message Sent"}]}
-                $result = $response->json();
-                
-                if (isset($result['result'][0]['responseCode']) && $result['result'][0]['responseCode'] == 10000) {
-                     Log::info("SMS Sent to {$phone}: " . $response->body());
-                     return true;
-                } else {
-                     Log::warning("SMS API Response Error: " . $response->body());
-                     // If the API returns 200 but the inner result is not 10000, it's a soft failure.
-                     // But strictly speaking, the request was "successful" (200 OK).
-                     // We'll log it and return true if we just care about dispatching, 
-                     // or false if we strictly need delivery confirmation. 
-                     // Given it's a background job usually, we might not retry if it's a logic error (e.g. bad number).
-                     return false; 
-                }
-            } else {
-                Log::error("SMS Failed to {$phone}: " . $response->body());
-                return false;
+                Log::info('MyCSMS: SMS sent to ' . implode(', ', $phones) . ' — ' . $response->body());
+                return true;
             }
-        } catch (\Exception $e) {
-            Log::error("SMS Exception to {$phone}: " . $e->getMessage());
+
+            Log::error('MyCSMS: HTTP ' . $response->status() . ' for ' . implode(', ', $phones) . ' — ' . $response->body());
+            return false;
+        } catch (\Throwable $e) {
+            Log::error('MyCSMS: Exception while sending to ' . implode(', ', $phones) . ' — ' . $e->getMessage());
             return false;
         }
     }

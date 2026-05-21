@@ -51,8 +51,9 @@ return [
     ],
 
     'mycsms' => [
-        'api_key' => env('MYCSMS_API_KEY'),
-        'sender_id' => env('MYCSMS_SENDER_ID', 'EliteWaste'),
-        'url' => 'https://apiv2.mycsms.com', // Standard endpoint
+        'api_key'      => env('MYCSMS_API_KEY'),
+        'sender_id'    => env('MYCSMS_SENDER_ID', 'EliteWaste'),
+        'url'          => env('MYCSMS_URL', 'https://app.mycsms.com/api/v3/sms/send'),
+        'message_type' => env('MYCSMS_MESSAGE_TYPE', 'text'),
     ],
 ];

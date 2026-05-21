@@ -142,10 +142,11 @@
                         </div>
 
                         <div class="sm:col-span-4">
-                            <label for="sms_base_url" class="block text-sm font-medium leading-6 text-gray-900">Base URL</label>
+                            <label for="sms_base_url" class="block text-sm font-medium leading-6 text-gray-900">Base URL <span class="text-xs font-normal text-gray-500">(MyCSMS v3 endpoint)</span></label>
                             <div class="mt-2">
-                                <input type="url" name="sms_base_url" id="sms_base_url" value="{{ $smsBaseUrl }}" placeholder="https://apiv2.mycsms.com"
+                                <input type="url" name="sms_base_url" id="sms_base_url" value="{{ $smsBaseUrl }}" placeholder="https://app.mycsms.com/api/v3/sms/send"
                                     class="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-primary sm:text-sm sm:leading-6">
+                                <p class="mt-1 text-xs text-gray-500">Default is the MyCSMS v3 endpoint. Legacy <span class="font-mono">apiv2.mycsms.com</span> values are ignored automatically.</p>
                             </div>
                         </div>
 
