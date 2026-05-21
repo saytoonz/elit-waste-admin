@@ -20,6 +20,7 @@ class PlatformService extends Model
         'unit_label',
         'default_quantity',
         'min_quantity',
+        'sms_messages_per_unit',
         'grace_days',
         'description',
         'features',
@@ -29,15 +30,16 @@ class PlatformService extends Model
     ];
 
     protected $casts = [
-        'unit_price'        => 'decimal:2',
-        'is_quantity_based' => 'boolean',
-        'customer_addable'  => 'boolean',
-        'is_active'         => 'boolean',
-        'features'          => 'array',
-        'default_quantity'  => 'integer',
-        'min_quantity'      => 'integer',
-        'grace_days'        => 'integer',
-        'sort_order'        => 'integer',
+        'unit_price'            => 'decimal:2',
+        'is_quantity_based'     => 'boolean',
+        'customer_addable'      => 'boolean',
+        'is_active'             => 'boolean',
+        'features'              => 'array',
+        'default_quantity'      => 'integer',
+        'min_quantity'          => 'integer',
+        'sms_messages_per_unit' => 'integer',
+        'grace_days'            => 'integer',
+        'sort_order'            => 'integer',
     ];
 
     public function subscriptions()

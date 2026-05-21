@@ -33,6 +33,32 @@
         @endforelse
     </div>
 
+    <!-- SMS Bundle Snapshot -->
+    @if($activeSmsBundle)
+        @php
+            $smsPct = $activeSmsBundle->usage_percent;
+            $smsBar = $smsPct >= 90 ? 'bg-red-500' : ($smsPct >= 75 ? 'bg-yellow-500' : 'bg-emerald-500');
+            $smsDays = $activeSmsBundle->days_remaining;
+        @endphp
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 mb-6">
+            <div class="flex items-center justify-between mb-3">
+                <div>
+                    <h3 class="text-base font-semibold text-gray-900">SMS Bundle</h3>
+                    <p class="text-xs text-gray-500 mt-0.5">Expires {{ $activeSmsBundle->period_end->format('M d, Y') }} ({{ $smsDays }} day{{ $smsDays === 1 ? '' : 's' }} left)</p>
+                </div>
+                <a href="{{ route('my.sms.index') }}" class="text-xs text-primary hover:underline">View history →</a>
+            </div>
+            <div class="grid grid-cols-3 gap-3 text-sm mb-3">
+                <div><div class="text-xs text-gray-500">Quota</div><div class="font-semibold text-gray-900">{{ number_format($activeSmsBundle->quantity_total) }}</div></div>
+                <div><div class="text-xs text-gray-500">Used</div><div class="font-semibold text-gray-900">{{ number_format($activeSmsBundle->quantity_used) }}</div></div>
+                <div><div class="text-xs text-gray-500">Remaining</div><div class="font-semibold {{ $activeSmsBundle->remaining === 0 ? 'text-red-700' : 'text-emerald-700' }}">{{ number_format($activeSmsBundle->remaining) }}</div></div>
+            </div>
+            <div class="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+                <div class="h-2 {{ $smsBar }}" style="width: {{ min(100, $smsPct) }}%"></div>
+            </div>
+        </div>
+    @endif
+
     <!-- Active subscriptions -->
     @if($subscriptions->isNotEmpty())
         <h2 class="text-base font-semibold text-gray-900 mb-3">Active Subscriptions</h2>

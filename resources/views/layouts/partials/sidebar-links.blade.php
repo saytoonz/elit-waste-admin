@@ -98,6 +98,14 @@
         My Invoices
     </a>
 </li>
+<li>
+    <a href="{{ route('my.sms.index') }}" class="{{ request()->routeIs('my.sms.*') ? 'bg-secondary text-white' : 'text-indigo-200 hover:text-white hover:bg-secondary' }} group flex gap-x-3 rounded-md p-2 text-sm font-semibold leading-6">
+        <svg class="h-6 w-6 shrink-0 {{ request()->routeIs('my.sms.*') ? 'text-white' : 'text-indigo-200 group-hover:text-white' }}" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"/>
+        </svg>
+        SMS Bundles
+    </a>
+</li>
 
 @hasrole('SuperAdmin')
 <li class="pt-4 mt-2 border-t border-indigo-700/40">

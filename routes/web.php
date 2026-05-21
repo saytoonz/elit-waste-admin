@@ -28,6 +28,8 @@ Route::middleware(['auth', 'platform.block'])->group(function () {
         Route::post('/services/{subscription}/quantity', [\App\Http\Controllers\MyServicesController::class, 'adjustQuantity'])->name('services.quantity');
         Route::post('/services/subscribe', [\App\Http\Controllers\MyServicesController::class, 'subscribe'])->name('services.subscribe');
 
+        Route::get('/sms', [\App\Http\Controllers\MySmsBundleController::class, 'index'])->name('sms.index');
+
         Route::get('/invoices', [\App\Http\Controllers\MyBillingController::class, 'index'])->name('invoices.index');
         Route::get('/invoices/callback', [\App\Http\Controllers\MyBillingController::class, 'callback'])->name('invoices.callback');
         Route::post('/invoices/pay-all', [\App\Http\Controllers\MyBillingController::class, 'payAll'])->name('invoices.payAll');
