@@ -36,6 +36,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'expense.approve',
             'vendor.manage',
             'budget.manage',
+            'platform.manage',
             'report.view',
             'view audit logs',
             'manage users',
@@ -98,6 +99,10 @@ class RolesAndPermissionsSeeder extends Seeder
         // 5. Owner (Full access)
         $owner = Role::firstOrCreate(['name' => 'Owner']);
         $owner->givePermissionTo(Permission::all());
+
+        // 6. SuperAdmin (Platform/Service Provider — separate from customer)
+        $superAdmin = Role::firstOrCreate(['name' => 'SuperAdmin']);
+        $superAdmin->givePermissionTo(Permission::all());
         
         // Create a default Owner User
         $user = \App\Models\User::firstOrCreate(

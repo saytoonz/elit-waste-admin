@@ -79,3 +79,50 @@
     </a>
 </li>
 @endcan
+
+<!-- Customer billing portal — visible to everyone -->
+<li class="pt-4 mt-2 border-t border-indigo-700/40">
+    <p class="text-xs font-semibold text-indigo-300 uppercase mb-1 px-2">My Billing</p>
+    <a href="{{ route('my.services.index') }}" class="{{ request()->routeIs('my.services.*') ? 'bg-secondary text-white' : 'text-indigo-200 hover:text-white hover:bg-secondary' }} group flex gap-x-3 rounded-md p-2 text-sm font-semibold leading-6">
+        <svg class="h-6 w-6 shrink-0 {{ request()->routeIs('my.services.*') ? 'text-white' : 'text-indigo-200 group-hover:text-white' }}" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z"/>
+        </svg>
+        My Services
+    </a>
+</li>
+<li>
+    <a href="{{ route('my.invoices.index') }}" class="{{ request()->routeIs('my.invoices.*') ? 'bg-secondary text-white' : 'text-indigo-200 hover:text-white hover:bg-secondary' }} group flex gap-x-3 rounded-md p-2 text-sm font-semibold leading-6">
+        <svg class="h-6 w-6 shrink-0 {{ request()->routeIs('my.invoices.*') ? 'text-white' : 'text-indigo-200 group-hover:text-white' }}" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5z"/>
+        </svg>
+        My Invoices
+    </a>
+</li>
+
+@hasrole('SuperAdmin')
+<li class="pt-4 mt-2 border-t border-indigo-700/40">
+    <p class="text-xs font-semibold text-amber-300 uppercase mb-1 px-2">Platform (Provider)</p>
+    <a href="{{ route('platform.services.index') }}" class="{{ request()->routeIs('platform.services.*') ? 'bg-secondary text-white' : 'text-indigo-200 hover:text-white hover:bg-secondary' }} group flex gap-x-3 rounded-md p-2 text-sm font-semibold leading-6">
+        <svg class="h-6 w-6 shrink-0 {{ request()->routeIs('platform.services.*') ? 'text-white' : 'text-indigo-200 group-hover:text-white' }}" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M21 7.5l-9-5.25L3 7.5m18 0l-9 5.25m9-5.25v9l-9 5.25M3 7.5l9 5.25M3 7.5v9l9 5.25m0-9v9"/>
+        </svg>
+        Catalog
+    </a>
+</li>
+<li>
+    <a href="{{ route('platform.subscriptions.index') }}" class="{{ request()->routeIs('platform.subscriptions.*') ? 'bg-secondary text-white' : 'text-indigo-200 hover:text-white hover:bg-secondary' }} group flex gap-x-3 rounded-md p-2 text-sm font-semibold leading-6">
+        <svg class="h-6 w-6 shrink-0 {{ request()->routeIs('platform.subscriptions.*') ? 'text-white' : 'text-indigo-200 group-hover:text-white' }}" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"/>
+        </svg>
+        Subscriptions
+    </a>
+</li>
+<li>
+    <a href="{{ route('platform.invoices.index') }}" class="{{ request()->routeIs('platform.invoices.*') ? 'bg-secondary text-white' : 'text-indigo-200 hover:text-white hover:bg-secondary' }} group flex gap-x-3 rounded-md p-2 text-sm font-semibold leading-6">
+        <svg class="h-6 w-6 shrink-0 {{ request()->routeIs('platform.invoices.*') ? 'text-white' : 'text-indigo-200 group-hover:text-white' }}" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9 17.25v1.007a3 3 0 01-.879 2.122L7.5 21h9l-.621-.621A3 3 0 0115 18.257V17.25m6-12V15a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 15V5.25m18 0A2.25 2.25 0 0018.75 3H5.25A2.25 2.25 0 003 5.25m18 0V12a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 12V5.25"/>
+        </svg>
+        Provider Invoices
+    </a>
+</li>
+@endhasrole

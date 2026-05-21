@@ -78,6 +78,17 @@ class DashboardController extends Controller
         $recentPayments = \App\Models\Payment::with(['customer', 'invoice'])->latest()->take(5)->get();
         $recentExpenses = Expense::with(['category', 'vendor'])->latest()->take(5)->get();
 
+        // Platform/customer billing summary
+        $platformUnpaidByCurrency = \App\Models\Platform\PlatformInvoice::unpaid()
+            ->selectRaw('currency, sum(total - amount_paid) as balance, count(*) as count')
+            ->groupBy('currency')
+            ->get();
+
+        $myMonthlyByCurrency = \App\Models\Platform\PlatformSubscription::whereIn('status', ['Active', 'Suspended'])
+            ->get()
+            ->groupBy('currency')
+            ->map(fn($subs) => $subs->sum(fn($s) => $s->monthly_equivalent));
+
         return view('dashboard', compact(
             'totalCustomers',
             'totalRevenue',
@@ -95,7 +106,9 @@ class DashboardController extends Controller
             'categoryValues',
             'categoryColors',
             'recentPayments',
-            'recentExpenses'
+            'recentExpenses',
+            'platformUnpaidByCurrency',
+            'myMonthlyByCurrency'
         ));
     }
 }

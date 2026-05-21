@@ -83,10 +83,22 @@
                 <!-- Payment Configuration -->
                 <div class="border-b border-gray-900/10 pb-12">
                      <div class="flex items-center gap-2">
-                        <h2 class="text-base font-semibold leading-7 text-gray-900">Payment Gateway (Paystack)</h2>
+                        <h2 class="text-base font-semibold leading-7 text-gray-900">Payment Gateway — Your Paystack Account</h2>
                          <span class="inline-flex items-center rounded-md bg-green-50 px-2 py-1 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20">Active</span>
                      </div>
-                    <p class="mt-1 text-sm leading-6 text-gray-600">Manage your API keys for online payments.</p>
+                    <p class="mt-1 text-sm leading-6 text-gray-600">These keys are used when <strong>your customers</strong> pay you for waste-collection invoices. Payouts go to your Paystack account.</p>
+                    @if(!empty($undecryptableKeys ?? []))
+                        <div class="mt-3 rounded-md bg-yellow-50 border border-yellow-200 p-3 text-sm text-yellow-900">
+                            <strong>{{ count($undecryptableKeys) }} setting(s) could not be decrypted</strong> — likely an APP_KEY change. Re-enter the values below to fix:
+                            <span class="font-mono">{{ implode(', ', $undecryptableKeys) }}</span>
+                        </div>
+                    @endif
+                    @if(isset($providerPaystackConfigured))
+                        <div class="mt-3 rounded-md {{ $providerPaystackConfigured ? 'bg-blue-50 border-blue-200 text-blue-900' : 'bg-amber-50 border-amber-200 text-amber-900' }} border p-3 text-xs">
+                            <strong>Provider (platform) Paystack:</strong>
+                            {{ $providerPaystackConfigured ? 'configured via .env (separate from your account above).' : 'not yet configured. Set PAYSTACK_PROVIDER_SECRET_KEY and PAYSTACK_PROVIDER_PUBLIC_KEY in .env on the server to enable hosting/email/domain billing.' }}
+                        </div>
+                    @endif
 
                     <div class="mt-8 grid grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-6">
                         <div class="sm:col-span-4">
