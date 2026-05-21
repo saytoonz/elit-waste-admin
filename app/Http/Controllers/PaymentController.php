@@ -11,11 +11,12 @@ use Illuminate\Support\Facades\Log;
 
 class PaymentController extends Controller
 {
-    protected $paystack;
+    protected PaystackService $paystack;
 
-    public function __construct(PaystackService $paystack)
+    public function __construct()
     {
-        $this->paystack = $paystack;
+        // Waste-collection invoices charge into the CUSTOMER's Paystack account
+        $this->paystack = PaystackService::forCustomer();
     }
 
     /**

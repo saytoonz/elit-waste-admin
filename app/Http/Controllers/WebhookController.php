@@ -4,51 +4,65 @@ namespace App\Http\Controllers;
 
 use App\Models\Invoice;
 use App\Models\Payment;
+use App\Models\Setting;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
 class WebhookController extends Controller
 {
     /**
-     * Handle Paystack Webhook
+     * Handle Paystack Webhook. Verifies the signature against BOTH provider and
+     * customer secrets so a single endpoint can receive events from either account.
      */
     public function handlePaystack(Request $request)
     {
-        // 1. Verify Signature
-        $secret = config('services.paystack.secret');
         $signature = $request->header('x-paystack-signature');
+        if (!$signature) {
+            Log::warning('Paystack Webhook: Missing signature');
+            return response()->json(['status' => 'error', 'message' => 'Missing signature'], 400);
+        }
 
-        if (!$signature || $signature !== hash_hmac('sha512', $request->getContent(), $secret)) {
+        $body = $request->getContent();
+        $customerSecret = Setting::safeValue('paystack_secret_key') ?: config('services.paystack.secret');
+        $providerSecret = config('services.paystack.provider_secret');
+
+        $matchesCustomer = $customerSecret && hash_equals(hash_hmac('sha512', $body, $customerSecret), $signature);
+        $matchesProvider = $providerSecret && hash_equals(hash_hmac('sha512', $body, $providerSecret), $signature);
+
+        if (!$matchesCustomer && !$matchesProvider) {
             Log::warning('Paystack Webhook: Invalid Signature');
             return response()->json(['status' => 'error', 'message' => 'Invalid Signature'], 400);
         }
 
-        // 2. Process Event
+        $source = $matchesProvider ? 'provider' : 'customer';
         $event = $request->input('event');
         $data = $request->input('data');
 
         if ($event === 'charge.success') {
-            $this->handleChargeSuccess($data);
+            $this->handleChargeSuccess($data, $source);
         }
 
         return response()->json(['status' => 'success'], 200);
     }
 
-    protected function handleChargeSuccess($data)
+    protected function handleChargeSuccess($data, string $source = 'customer')
     {
         $reference = $data['reference'];
-        $amount = $data['amount'] / 100; // kobo to GHS
+        $amount = $data['amount'] / 100;
         $metadata = $data['metadata'] ?? [];
-        $invoiceId = $metadata['invoice_id'] ?? null;
 
-        Log::info("Paystack Webhook: Payment success for reference {$reference}");
+        Log::info("Paystack Webhook ({$source}): charge.success ref={$reference}");
 
-        // Check if already recorded
-        if (Payment::where('reference', $reference)->exists()) {
+        // Provider account → platform billing (hosting/email/domain/SMS)
+        if ($source === 'provider' || ($metadata['kind'] ?? null) === 'platform_invoice' || ($metadata['kind'] ?? null) === 'platform_invoice_bundle') {
+            $this->handlePlatformChargeSuccess($data, $reference, $amount, $metadata);
             return;
         }
 
-        // Record Payment
+        // Customer account → waste-collection invoices
+        $invoiceId = $metadata['invoice_id'] ?? null;
+        if (Payment::where('reference', $reference)->exists()) return;
+
         Payment::create([
             'customer_id' => $metadata['customer_id'] ?? null,
             'invoice_id' => $invoiceId,
@@ -60,16 +74,52 @@ class WebhookController extends Controller
             'metadata' => json_encode($data),
         ]);
 
-        // Update Invoice
         if ($invoiceId) {
             $invoice = Invoice::find($invoiceId);
             if ($invoice) {
                 $newBalance = $invoice->balance_due - $amount;
                 $invoice->update([
                     'balance_due' => max(0, $newBalance),
-                    'status' => $newBalance <= 0 ? 'Paid' : 'Partial'
+                    'status' => $newBalance <= 0 ? 'Paid' : 'Partial',
                 ]);
             }
         }
+    }
+
+    protected function handlePlatformChargeSuccess(array $data, string $reference, float $amount, array $metadata): void
+    {
+        if (\App\Models\Platform\PlatformPayment::where('reference', $reference)->exists()) return;
+
+        $billing = app(\App\Services\PlatformBillingService::class);
+        $bundledIds = $metadata['bundled_invoices'] ?? null;
+
+        // If init-time conversion stashed the original amount, settle invoices in that currency.
+        $originalAmount = isset($metadata['original_amount']) ? (float) $metadata['original_amount'] : $amount;
+
+        if (is_array($bundledIds) && count($bundledIds) > 0) {
+            $invoices = \App\Models\Platform\PlatformInvoice::whereIn('id', $bundledIds)->orderBy('issued_at')->get();
+            $remaining = $originalAmount;
+            $i = 0;
+            foreach ($invoices as $inv) {
+                $balance = (float) $inv->balance;
+                if ($balance <= 0 || $remaining <= 0.0001) continue;
+                $apply = min($balance, $remaining);
+                $perRef = $i === 0 ? $reference : ($reference . '-' . $i);
+                $billing->applyPayment($inv, $apply, $perRef, 'Paystack', $data + [
+                    'bundle_total_original' => $originalAmount,
+                    'bundle_total_charged'  => $amount,
+                    'source' => 'webhook',
+                ]);
+                $remaining -= $apply;
+                $i++;
+            }
+            return;
+        }
+
+        $invoiceId = $metadata['platform_invoice'] ?? null;
+        if (!$invoiceId) return;
+        $invoice = \App\Models\Platform\PlatformInvoice::find($invoiceId);
+        if (!$invoice) return;
+        $billing->applyPayment($invoice, $originalAmount, $reference, 'Paystack', $data + ['source' => 'webhook']);
     }
 }

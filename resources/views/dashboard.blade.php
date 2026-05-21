@@ -129,6 +129,35 @@
         </div>
     </div>
 
+    <!-- My Platform Billing Summary -->
+    @if($myMonthlyByCurrency->isNotEmpty() || $platformUnpaidByCurrency->isNotEmpty())
+        <div class="mt-8 bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-semibold text-gray-900">My Subscriptions & Billing</h3>
+                <div class="flex gap-2">
+                    <a href="{{ route('my.services.index') }}" class="text-sm text-primary hover:underline">View Services</a>
+                    <span class="text-gray-300">|</span>
+                    <a href="{{ route('my.invoices.index') }}" class="text-sm text-primary hover:underline">View Invoices</a>
+                </div>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                @foreach($myMonthlyByCurrency as $currency => $monthly)
+                    <div class="border border-gray-200 rounded-lg p-4">
+                        <div class="text-xs uppercase text-gray-500">Monthly Spend ({{ $currency }})</div>
+                        <div class="text-xl font-bold text-gray-900 mt-1">{{ $currency }} {{ number_format($monthly, 2) }}</div>
+                    </div>
+                @endforeach
+                @foreach($platformUnpaidByCurrency as $row)
+                    <div class="border border-yellow-200 bg-yellow-50/40 rounded-lg p-4">
+                        <div class="text-xs uppercase text-yellow-700">Unpaid ({{ $row->currency }})</div>
+                        <div class="text-xl font-bold text-yellow-800 mt-1">{{ $row->currency }} {{ number_format($row->balance, 2) }}</div>
+                        <div class="text-xs text-yellow-700 mt-1">{{ $row->count }} invoice(s)</div>
+                    </div>
+                @endforeach
+            </div>
+        </div>
+    @endif
+
     <!-- Recent Activity -->
     <div class="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div>

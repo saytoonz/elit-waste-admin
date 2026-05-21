@@ -11,7 +11,9 @@
         <div class="mt-4 sm:ml-16 sm:mt-0 sm:flex-none flex gap-2">
             <a href="{{ route('export.csv', 'users') }}" class="block rounded-md bg-white px-3 py-2 text-center text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50">Export CSV</a>
             <a href="{{ route('export.pdf', 'users') }}" class="block rounded-md bg-white px-3 py-2 text-center text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50">Export PDF</a>
-            <a href="{{ route('users.create') }}" class="block rounded-md bg-white px-3 py-2 text-center text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50">Add User</a>
+            @hasrole('SuperAdmin')
+                <a href="{{ route('users.create') }}" class="block rounded-md bg-white px-3 py-2 text-center text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50">Add User</a>
+            @endhasrole
         </div>
     </div>
 

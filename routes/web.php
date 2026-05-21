@@ -15,10 +15,40 @@ Route::get('/dashboard', [\App\Http\Controllers\DashboardController::class, 'ind
     ->middleware(['auth', 'verified'])
     ->name('dashboard');
 
-Route::middleware('auth')->group(function () {
+Route::middleware(['auth', 'platform.block'])->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+
+    // Customer-facing portal (My Services / My Billing)
+    Route::prefix('my')->name('my.')->group(function () {
+        Route::get('/services', [\App\Http\Controllers\MyServicesController::class, 'index'])->name('services.index');
+        Route::get('/services/email/add', [\App\Http\Controllers\MyServicesController::class, 'emailForm'])->name('services.email.form');
+        Route::post('/services/email/add', [\App\Http\Controllers\MyServicesController::class, 'emailPurchase'])->name('services.email.purchase');
+        Route::post('/services/{subscription}/quantity', [\App\Http\Controllers\MyServicesController::class, 'adjustQuantity'])->name('services.quantity');
+        Route::post('/services/subscribe', [\App\Http\Controllers\MyServicesController::class, 'subscribe'])->name('services.subscribe');
+
+        Route::get('/invoices', [\App\Http\Controllers\MyBillingController::class, 'index'])->name('invoices.index');
+        Route::get('/invoices/callback', [\App\Http\Controllers\MyBillingController::class, 'callback'])->name('invoices.callback');
+        Route::post('/invoices/pay-all', [\App\Http\Controllers\MyBillingController::class, 'payAll'])->name('invoices.payAll');
+        Route::get('/invoices/{invoice}', [\App\Http\Controllers\MyBillingController::class, 'show'])->name('invoices.show');
+        Route::get('/invoices/{invoice}/pay', [\App\Http\Controllers\MyBillingController::class, 'pay'])->name('invoices.pay');
+        Route::post('/subscriptions/{subscription}/prepay', [\App\Http\Controllers\MyBillingController::class, 'prepay'])->name('subscriptions.prepay');
+    });
+
+    // Provider-side platform management (SuperAdmin only)
+    Route::prefix('platform')->name('platform.')->middleware('role:SuperAdmin')->group(function () {
+        Route::resource('services', \App\Http\Controllers\Platform\PlatformServiceController::class)->except(['show']);
+        Route::resource('subscriptions', \App\Http\Controllers\Platform\PlatformSubscriptionController::class)->except(['show']);
+        Route::post('subscriptions/{subscription}/toggle-force', [\App\Http\Controllers\Platform\PlatformSubscriptionController::class, 'toggleForce'])->name('subscriptions.toggleForce');
+        Route::post('subscriptions/{subscription}/reactivate', [\App\Http\Controllers\Platform\PlatformSubscriptionController::class, 'reactivate'])->name('subscriptions.reactivate');
+        Route::post('subscriptions/{subscription}/bill-now', [\App\Http\Controllers\Platform\PlatformSubscriptionController::class, 'billNow'])->name('subscriptions.billNow');
+
+        Route::get('invoices', [\App\Http\Controllers\Platform\PlatformInvoiceController::class, 'index'])->name('invoices.index');
+        Route::get('invoices/{invoice}', [\App\Http\Controllers\Platform\PlatformInvoiceController::class, 'show'])->name('invoices.show');
+        Route::post('invoices/{invoice}/mark-paid', [\App\Http\Controllers\Platform\PlatformInvoiceController::class, 'markPaid'])->name('invoices.markPaid');
+        Route::post('invoices/{invoice}/cancel', [\App\Http\Controllers\Platform\PlatformInvoiceController::class, 'cancel'])->name('invoices.cancel');
+    });
     
     Route::resource('users', \App\Http\Controllers\UserController::class)->middleware('permission:manage users');
     Route::resource('service_plans', \App\Http\Controllers\ServicePlanController::class);

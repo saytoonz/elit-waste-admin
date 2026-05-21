@@ -36,8 +36,16 @@ return [
     ],
 
     'paystack' => [
+        // Customer profile — Elite Waste's own Paystack account (waste-collection invoices).
+        // These also act as fallback if the Settings table has no value.
         'publicKey' => env('PAYSTACK_PUBLIC_KEY'),
         'secret' => env('PAYSTACK_SECRET_KEY'),
+
+        // Provider profile — YOUR (developer/service-provider) Paystack account.
+        // Used for platform billing of hosting/email/domain/SMS. Never exposed in UI.
+        'provider_public' => env('PAYSTACK_PROVIDER_PUBLIC_KEY'),
+        'provider_secret' => env('PAYSTACK_PROVIDER_SECRET_KEY'),
+
         'paymentUrl' => env('PAYSTACK_PAYMENT_URL'),
         'merchantEmail' => env('MERCHANT_EMAIL'),
     ],
