@@ -7,6 +7,7 @@ use App\Models\Platform\PlatformInvoice;
 use App\Models\Platform\PlatformInvoiceItem;
 use App\Models\Platform\PlatformPayment;
 use App\Models\Platform\PlatformSubscription;
+use App\Models\Platform\SmsBundle;
 use App\Models\User;
 use App\Services\AuditService;
 use Carbon\Carbon;
@@ -193,6 +194,9 @@ class PlatformBillingService
 
                 // Fulfill any pending user provisions tied to this invoice
                 $this->fulfillPendingProvisions($invoice);
+
+                // Fulfill SMS bundles for any SMS-type subscriptions on this invoice
+                $this->fulfillSmsBundles($invoice);
             } else {
                 $invoice->status = 'Partial';
             }
@@ -267,6 +271,47 @@ class PlatformBillingService
                     'suspension_reason' => null,
                 ]);
             }
+        }
+    }
+
+    /**
+     * For any SMS-type subscription on this paid invoice, create the SMS bundle
+     * (quantity = subscription qty × service.sms_messages_per_unit × cycles_covered).
+     * Idempotent — won't create a duplicate bundle for the same invoice+subscription.
+     */
+    protected function fulfillSmsBundles(PlatformInvoice $invoice): void
+    {
+        $invoice->load('items.subscription.service');
+
+        foreach ($invoice->items as $item) {
+            $sub = $item->subscription;
+            if (!$sub) continue;
+            $service = $sub->service;
+            if (!$service || $service->type !== 'SMS') continue;
+
+            // Idempotency
+            $exists = SmsBundle::where('platform_invoice_id', $invoice->id)
+                ->where('platform_subscription_id', $sub->id)
+                ->exists();
+            if ($exists) continue;
+
+            $messagesPerUnit = (int) ($service->sms_messages_per_unit ?? 1000);
+            if ($messagesPerUnit <= 0) continue;
+
+            $total = $sub->quantity * $messagesPerUnit * max(1, (int) $invoice->cycles_covered);
+
+            SmsBundle::create([
+                'platform_subscription_id' => $sub->id,
+                'platform_invoice_id'      => $invoice->id,
+                'quantity_total'           => $total,
+                'quantity_used'            => 0,
+                'period_start'             => $invoice->period_start,
+                'period_end'               => $invoice->period_end,
+                'status'                   => 'Active',
+                'notes'                    => "Fulfilled by invoice #{$invoice->invoice_number}",
+            ]);
+
+            AuditService::log('SMS Bundle Fulfilled', "{$total} messages valid {$invoice->period_start->format('Y-m-d')} → {$invoice->period_end->format('Y-m-d')}");
         }
     }
 

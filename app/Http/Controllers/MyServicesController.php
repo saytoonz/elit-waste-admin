@@ -45,9 +45,12 @@ class MyServicesController extends Controller
         $otherAddable  = PlatformService::active()->where('customer_addable', true)->where('type', '!=', 'Email')->orderBy('sort_order')->get();
         $managedServices = PlatformService::active()->where('customer_addable', false)->orderBy('sort_order')->get();
 
+        $activeSmsBundle = \App\Models\Platform\SmsBundle::findActive();
+
         return view('my.services.index', compact(
             'subscriptions', 'totals', 'unpaidInvoices',
-            'emailService', 'otherAddable', 'managedServices'
+            'emailService', 'otherAddable', 'managedServices',
+            'activeSmsBundle'
         ));
     }
 
