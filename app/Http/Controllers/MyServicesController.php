@@ -9,6 +9,7 @@ use App\Models\Platform\PlatformService;
 use App\Models\Platform\PlatformSubscription;
 use App\Models\User;
 use App\Services\AuditService;
+use App\Support\PlatformConfig;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -70,6 +71,10 @@ class MyServicesController extends Controller
 
     public function subscribe(Request $request)
     {
+        if (!PlatformConfig::paymentsEnabled()) {
+            return back()->with('error', 'New subscriptions are temporarily disabled by the provider.');
+        }
+
         $data = $request->validate([
             'platform_service_id' => 'required|exists:platform_services,id',
             'quantity'            => 'nullable|integer|min:1',
@@ -136,6 +141,10 @@ class MyServicesController extends Controller
 
     public function emailPurchase(Request $request)
     {
+        if (!PlatformConfig::paymentsEnabled()) {
+            return back()->with('error', 'Payments are temporarily disabled by the provider. Please try again later.');
+        }
+
         $service = PlatformService::active()->where('type', 'Email')->first();
         if (!$service) {
             return redirect()->route('my.services.index')->with('error', 'Email service is not available.');

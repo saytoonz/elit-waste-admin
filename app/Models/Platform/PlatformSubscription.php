@@ -40,6 +40,8 @@ class PlatformSubscription extends Model
         'auto_renew'        => 'boolean',
         'force_payment'     => 'boolean',
         'unit_price'        => 'decimal:2',
+        'quantity'          => 'integer',
+        'grace_days'        => 'integer',
         'metadata'          => 'array',
     ];
 

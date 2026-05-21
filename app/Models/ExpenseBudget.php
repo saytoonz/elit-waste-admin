@@ -23,8 +23,12 @@ class ExpenseBudget extends Model
     ];
 
     protected $casts = [
-        'amount' => 'decimal:2',
-        'alert_enabled' => 'boolean',
+        'amount'                  => 'decimal:2',
+        'alert_enabled'           => 'boolean',
+        'year'                    => 'integer',
+        'month'                   => 'integer',
+        'quarter'                 => 'integer',
+        'alert_threshold_percent' => 'integer',
     ];
 
     public function category()

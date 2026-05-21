@@ -7,6 +7,7 @@ use App\Models\Platform\PlatformSubscription;
 use App\Services\AuditService;
 use App\Services\PaystackService;
 use App\Services\PlatformBillingService;
+use App\Support\PlatformConfig;
 use Illuminate\Http\Request;
 
 class MyBillingController extends Controller
@@ -25,7 +26,12 @@ class MyBillingController extends Controller
     {
         $query = PlatformInvoice::with('items.service');
 
-        if ($request->filled('status')) $query->where('status', $request->status);
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        } else {
+            // Hide Cancelled from the default customer view — opt-in via status filter
+            $query->where('status', '!=', 'Cancelled');
+        }
 
         $invoices = $query->latest('issued_at')->paginate(20)->withQueryString();
 
@@ -75,8 +81,14 @@ class MyBillingController extends Controller
 
     public function pay(Request $request, PlatformInvoice $invoice)
     {
+        if (!PlatformConfig::paymentsEnabled()) {
+            return back()->with('error', 'Payments are temporarily disabled by the provider.' . (PlatformConfig::maintenanceMessage() ? ' ' . PlatformConfig::maintenanceMessage() : ''));
+        }
         if ($invoice->status === 'Paid') {
             return redirect()->route('my.invoices.show', $invoice)->with('error', 'Invoice is already paid.');
+        }
+        if ($invoice->status === 'Cancelled') {
+            return redirect()->route('my.invoices.show', $invoice)->with('error', 'This invoice has been cancelled and cannot be paid.');
         }
         if ($invoice->balance <= 0) {
             return redirect()->route('my.invoices.show', $invoice)->with('error', 'Nothing left to pay.');
@@ -120,6 +132,9 @@ class MyBillingController extends Controller
 
     public function payAll(Request $request)
     {
+        if (!PlatformConfig::paymentsEnabled()) {
+            return back()->with('error', 'Payments are temporarily disabled by the provider.' . (PlatformConfig::maintenanceMessage() ? ' ' . PlatformConfig::maintenanceMessage() : ''));
+        }
         $currency = strtoupper((string) $request->input('currency', ''));
         if (!$currency) {
             return back()->with('error', 'Currency is required.');
@@ -184,6 +199,9 @@ class MyBillingController extends Controller
 
     public function prepay(Request $request, PlatformSubscription $subscription)
     {
+        if (!PlatformConfig::paymentsEnabled()) {
+            return back()->with('error', 'Payments are temporarily disabled by the provider.');
+        }
         $data = $request->validate([
             'cycles' => 'required|integer|min:1|max:24',
         ]);

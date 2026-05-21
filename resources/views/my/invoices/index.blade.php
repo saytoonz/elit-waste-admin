@@ -4,6 +4,8 @@
     @if(session('success'))<div class="mb-4 rounded-md bg-green-50 p-3 text-sm text-green-700 border border-green-200">{{ session('success') }}</div>@endif
     @if(session('error'))<div class="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-700 border border-red-200">{{ session('error') }}</div>@endif
 
+    @include('my.partials.payments-paused-banner')
+
     @if($unpaidByCurrency->isNotEmpty())
         <div class="grid grid-cols-1 sm:grid-cols-{{ min(3, $unpaidByCurrency->count()) }} gap-4 mb-6">
             @foreach($unpaidByCurrency as $row)
@@ -20,14 +22,18 @@
                                 <div class="text-xs text-red-600 mt-1">{{ $row->conversion_error }}</div>
                             @endif
                         </div>
-                        <form action="{{ route('my.invoices.payAll') }}" method="POST">
-                            @csrf
-                            <input type="hidden" name="currency" value="{{ $row->currency }}">
-                            <button type="submit" class="inline-flex items-center gap-2 rounded-md bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-md hover:bg-emerald-500">
-                                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>
-                                Pay All
-                            </button>
-                        </form>
+                        @if(\App\Support\PlatformConfig::paymentsEnabled())
+                            <form action="{{ route('my.invoices.payAll') }}" method="POST">
+                                @csrf
+                                <input type="hidden" name="currency" value="{{ $row->currency }}">
+                                <button type="submit" class="inline-flex items-center gap-2 rounded-md bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-md hover:bg-emerald-500">
+                                    <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>
+                                    Pay All
+                                </button>
+                            </form>
+                        @else
+                            <button type="button" disabled class="inline-flex items-center gap-2 rounded-md bg-gray-300 px-4 py-2 text-sm font-semibold text-gray-600 cursor-not-allowed">Paused</button>
+                        @endif
                     </div>
                     <p class="text-xs text-gray-500 mt-2">Pays all outstanding {{ $row->currency }} invoices in a single Paystack transaction.</p>
                 </div>
@@ -80,7 +86,7 @@
                         </td>
                         <td class="py-3 pl-3 pr-4 text-right text-sm font-medium flex justify-end gap-2">
                             <a href="{{ route('my.invoices.show', $inv) }}" class="text-primary hover:underline">View</a>
-                            @if($inv->balance > 0)
+                            @if($inv->balance > 0 && !in_array($inv->status, ['Cancelled', 'Paid']) && \App\Support\PlatformConfig::paymentsEnabled())
                                 <a href="{{ route('my.invoices.pay', $inv) }}" class="rounded-md bg-emerald-600 px-2.5 py-1 text-white text-xs font-semibold hover:bg-emerald-500">Pay Now</a>
                             @endif
                         </td>

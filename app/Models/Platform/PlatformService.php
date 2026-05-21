@@ -34,6 +34,10 @@ class PlatformService extends Model
         'customer_addable'  => 'boolean',
         'is_active'         => 'boolean',
         'features'          => 'array',
+        'default_quantity'  => 'integer',
+        'min_quantity'      => 'integer',
+        'grace_days'        => 'integer',
+        'sort_order'        => 'integer',
     ];
 
     public function subscriptions()

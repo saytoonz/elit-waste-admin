@@ -4,6 +4,8 @@
     @if(session('success'))<div class="mb-4 rounded-md bg-green-50 p-3 text-sm text-green-700 border border-green-200">{{ session('success') }}</div>@endif
     @if(session('error'))<div class="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-700 border border-red-200">{{ session('error') }}</div>@endif
 
+    @include('my.partials.payments-paused-banner')
+
     <div class="max-w-4xl mx-auto bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl p-8">
         <div class="flex justify-between items-start mb-6">
             <div>
@@ -47,20 +49,29 @@
             </tfoot>
         </table>
 
-        @if($invoice->balance > 0)
+        @if($invoice->status === 'Cancelled')
+            <div class="mt-8 text-center">
+                <p class="text-gray-700 font-semibold">This invoice has been cancelled — no payment is required.</p>
+            </div>
+        @elseif($invoice->balance > 0)
             @php
                 $needsConversion = isset($conversion) && empty($conversion['error']) && $conversion['charge_currency'] !== $invoice->currency;
                 $conversionError = $conversion['error'] ?? null;
+                $paymentsEnabled = \App\Support\PlatformConfig::paymentsEnabled();
             @endphp
             <div class="mt-8 flex flex-col items-center gap-3">
-                <a href="{{ route('my.invoices.pay', $invoice) }}" class="inline-flex items-center gap-2 rounded-md bg-emerald-600 px-6 py-3 text-base font-semibold text-white hover:bg-emerald-500 shadow-md">
-                    <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>
-                    Pay {{ $invoice->currency }} {{ number_format($invoice->balance, 2) }} via Paystack
-                </a>
-                @if($needsConversion)
-                    <p class="text-sm text-gray-700">You'll be charged <span class="font-semibold">{{ $conversion['charge_currency'] }} {{ number_format($conversion['charge_amount'], 2) }}</span> at rate {{ rtrim(rtrim(number_format($conversion['rate'], 4), '0'), '.') }}</p>
+                @if($paymentsEnabled)
+                    <a href="{{ route('my.invoices.pay', $invoice) }}" class="inline-flex items-center gap-2 rounded-md bg-emerald-600 px-6 py-3 text-base font-semibold text-white hover:bg-emerald-500 shadow-md">
+                        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>
+                        Pay {{ $invoice->currency }} {{ number_format($invoice->balance, 2) }} via Paystack
+                    </a>
+                    @if($needsConversion)
+                        <p class="text-sm text-gray-700">You'll be charged <span class="font-semibold">{{ $conversion['charge_currency'] }} {{ number_format($conversion['charge_amount'], 2) }}</span> at rate {{ rtrim(rtrim(number_format($conversion['rate'], 4), '0'), '.') }}</p>
+                    @endif
+                    <p class="text-xs text-gray-500">Secure payment via Paystack — card or mobile money</p>
+                @else
+                    <button type="button" disabled class="inline-flex items-center gap-2 rounded-md bg-gray-300 px-6 py-3 text-base font-semibold text-gray-600 cursor-not-allowed">Payments Paused</button>
                 @endif
-                <p class="text-xs text-gray-500">Secure payment via Paystack — card or mobile money</p>
                 @if($conversionError)
                     <p class="text-sm text-red-600">{{ $conversionError }}</p>
                 @endif
