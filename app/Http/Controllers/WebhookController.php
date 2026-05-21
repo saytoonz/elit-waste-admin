@@ -75,13 +75,24 @@ class WebhookController extends Controller
         ]);
 
         if ($invoiceId) {
-            $invoice = Invoice::find($invoiceId);
+            $invoice = Invoice::with('customer')->find($invoiceId);
             if ($invoice) {
                 $newBalance = $invoice->balance_due - $amount;
                 $invoice->update([
                     'balance_due' => max(0, $newBalance),
                     'status' => $newBalance <= 0 ? 'Paid' : 'Partial',
                 ]);
+
+                // Confirmation SMS — webhook is the primary success path for mobile money,
+                // since Paystack doesn't reliably auto-redirect to the browser callback for MoMo.
+                if ($invoice->customer && $invoice->customer->phone) {
+                    $formattedAmount = number_format($amount, 2);
+                    $msg = "Payment Received: GHS {$formattedAmount} for Invoice #{$invoice->invoice_number}. Thanks! - Elite Waste";
+                    \App\Jobs\SendSmsJob::dispatch($invoice->customer->phone, $msg);
+                    Log::info("Webhook: dispatched confirmation SMS to {$invoice->customer->phone} for #{$invoice->invoice_number}");
+                }
+
+                \App\Services\AuditService::log('Webhook Payment', "#{$invoice->invoice_number} GHS {$amount} ref={$reference}");
             }
         }
     }
