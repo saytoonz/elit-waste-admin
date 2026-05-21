@@ -75,20 +75,41 @@
         </div>
 
         <div class="space-y-4">
-            @if($invoice->balance > 0)
-                <div class="bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl p-4">
-                    <h3 class="text-base font-semibold text-gray-900 mb-3">Record Manual Payment</h3>
-                    <form action="{{ route('platform.invoices.markPaid', $invoice) }}" method="POST" class="space-y-2">
-                        @csrf
-                        <input type="number" step="0.01" min="0.01" name="amount" value="{{ $invoice->balance }}" required class="block w-full rounded-md border-0 py-1.5 text-sm text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-primary">
-                        <input type="text" name="channel" value="Bank Transfer" required class="block w-full rounded-md border-0 py-1.5 text-sm text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-primary">
-                        <input type="text" name="reference" placeholder="External ref (optional)" class="block w-full rounded-md border-0 py-1.5 text-sm text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-primary">
-                        <button class="w-full rounded-md bg-primary px-3 py-2 text-sm font-semibold text-white hover:bg-secondary">Record Payment</button>
-                    </form>
+            @if($invoice->trashed())
+                <div class="bg-gray-50 border border-gray-300 rounded-xl p-4 text-sm text-gray-700">
+                    <p class="font-semibold">This invoice is in the trash.</p>
+                    <p class="text-xs text-gray-500 mt-1">Customer doesn't see it. Restore to make it visible again.</p>
+                    <div class="mt-3 flex gap-2">
+                        <form action="{{ route('platform.invoices.restore', $invoice->id) }}" method="POST" class="flex-1">
+                            @csrf
+                            <button class="w-full rounded-md bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-500">Restore</button>
+                        </form>
+                        <form action="{{ route('platform.invoices.forceDelete', $invoice->id) }}" method="POST" class="flex-1" onsubmit="return confirm('Permanently delete this invoice? Cannot be undone.');">
+                            @csrf @method('DELETE')
+                            <button class="w-full rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white hover:bg-red-500">Force Delete</button>
+                        </form>
+                    </div>
                 </div>
-                <form action="{{ route('platform.invoices.cancel', $invoice) }}" method="POST" onsubmit="return confirm('Cancel this invoice?')">
-                    @csrf
-                    <button class="w-full rounded-md bg-red-50 px-3 py-2 text-sm font-medium text-red-700 ring-1 ring-inset ring-red-200 hover:bg-red-100">Cancel Invoice</button>
+            @else
+                @if($invoice->balance > 0 && $invoice->status !== 'Cancelled')
+                    <div class="bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl p-4">
+                        <h3 class="text-base font-semibold text-gray-900 mb-3">Record Manual Payment</h3>
+                        <form action="{{ route('platform.invoices.markPaid', $invoice->id) }}" method="POST" class="space-y-2">
+                            @csrf
+                            <input type="number" step="0.01" min="0.01" name="amount" value="{{ $invoice->balance }}" required class="block w-full rounded-md border-0 py-1.5 text-sm text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-primary">
+                            <input type="text" name="channel" value="Bank Transfer" required class="block w-full rounded-md border-0 py-1.5 text-sm text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-primary">
+                            <input type="text" name="reference" placeholder="External ref (optional)" class="block w-full rounded-md border-0 py-1.5 text-sm text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-primary">
+                            <button class="w-full rounded-md bg-primary px-3 py-2 text-sm font-semibold text-white hover:bg-secondary">Record Payment</button>
+                        </form>
+                    </div>
+                    <form action="{{ route('platform.invoices.cancel', $invoice->id) }}" method="POST" onsubmit="return confirm('Cancel this invoice?')">
+                        @csrf
+                        <button class="w-full rounded-md bg-amber-50 px-3 py-2 text-sm font-medium text-amber-700 ring-1 ring-inset ring-amber-200 hover:bg-amber-100">Cancel Invoice</button>
+                    </form>
+                @endif
+                <form action="{{ route('platform.invoices.destroy', $invoice->id) }}" method="POST" onsubmit="return confirm('Delete this invoice? It will be hidden from both customer and provider lists. You can restore it from the Trash tab.')">
+                    @csrf @method('DELETE')
+                    <button class="w-full rounded-md bg-red-50 px-3 py-2 text-sm font-medium text-red-700 ring-1 ring-inset ring-red-200 hover:bg-red-100">Delete Invoice</button>
                 </form>
             @endif
 

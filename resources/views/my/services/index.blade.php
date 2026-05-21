@@ -4,6 +4,8 @@
     @if(session('success'))<div class="mb-4 rounded-md bg-green-50 p-3 text-sm text-green-700 border border-green-200">{{ session('success') }}</div>@endif
     @if(session('error'))<div class="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-700 border border-red-200">{{ session('error') }}</div>@endif
 
+    @include('my.partials.payments-paused-banner')
+
     @if($unpaidInvoices->isNotEmpty())
         <div class="mb-6 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
             <div class="flex items-center justify-between">

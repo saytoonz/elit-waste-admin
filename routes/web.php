@@ -48,6 +48,13 @@ Route::middleware(['auth', 'platform.block'])->group(function () {
         Route::get('invoices/{invoice}', [\App\Http\Controllers\Platform\PlatformInvoiceController::class, 'show'])->name('invoices.show');
         Route::post('invoices/{invoice}/mark-paid', [\App\Http\Controllers\Platform\PlatformInvoiceController::class, 'markPaid'])->name('invoices.markPaid');
         Route::post('invoices/{invoice}/cancel', [\App\Http\Controllers\Platform\PlatformInvoiceController::class, 'cancel'])->name('invoices.cancel');
+        Route::delete('invoices/{invoice}', [\App\Http\Controllers\Platform\PlatformInvoiceController::class, 'destroy'])->name('invoices.destroy');
+        Route::post('invoices/{invoice}/restore', [\App\Http\Controllers\Platform\PlatformInvoiceController::class, 'restore'])->name('invoices.restore');
+        Route::delete('invoices/{invoice}/force', [\App\Http\Controllers\Platform\PlatformInvoiceController::class, 'forceDelete'])->name('invoices.forceDelete');
+
+        // Provider settings (payment toggle, maintenance message)
+        Route::get('settings', [\App\Http\Controllers\Platform\PlatformSettingsController::class, 'show'])->name('settings.show');
+        Route::post('settings', [\App\Http\Controllers\Platform\PlatformSettingsController::class, 'update'])->name('settings.update');
     });
     
     Route::resource('users', \App\Http\Controllers\UserController::class)->middleware('permission:manage users');

@@ -20,6 +20,22 @@
             <div class="text-xs uppercase text-gray-500">Overdue</div>
             <div class="text-xl font-bold text-red-700 mt-1">{{ $totals['overdue_count'] }}</div>
         </div>
+        <div class="bg-white rounded-lg shadow-sm p-4 border border-gray-100">
+            <div class="text-xs uppercase text-gray-500">Trash</div>
+            <div class="text-xl font-bold text-gray-700 mt-1">{{ $totals['trashed_count'] ?? 0 }}</div>
+        </div>
+    </div>
+
+    <!-- View tabs -->
+    <div class="mt-6 inline-flex rounded-md shadow-sm" role="group">
+        @php $currentView = $view ?? 'active'; @endphp
+        @foreach(['active' => 'Active', 'trashed' => 'Trash', 'all' => 'All (incl. trashed)'] as $key => $label)
+            <a href="{{ route('platform.invoices.index', array_merge(request()->except('view', 'page'), ['view' => $key])) }}"
+               class="px-3 py-1.5 text-sm font-medium border {{ $loop->first ? 'rounded-l-md' : '' }} {{ $loop->last ? 'rounded-r-md' : '' }}
+                      {{ $currentView === $key ? 'bg-primary text-white border-primary' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50' }}">
+                {{ $label }}
+            </a>
+        @endforeach
     </div>
 
     @if(session('success'))<div class="mt-4 rounded-md bg-green-50 p-3 text-sm text-green-700 border border-green-200">{{ session('success') }}</div>@endif
@@ -69,9 +85,10 @@
             </thead>
             <tbody class="divide-y divide-gray-200 bg-white">
                 @forelse($invoices as $inv)
-                    <tr>
+                    <tr class="{{ $inv->trashed() ? 'bg-gray-50 opacity-75' : '' }}">
                         <td class="py-3 pl-4 pr-3 text-sm font-medium text-gray-900">
-                            <a href="{{ route('platform.invoices.show', $inv) }}" class="text-primary hover:underline">{{ $inv->invoice_number }}</a>
+                            <a href="{{ route('platform.invoices.show', $inv->id) }}" class="text-primary hover:underline">{{ $inv->invoice_number }}</a>
+                            @if($inv->trashed())<span class="ml-1 text-xs text-gray-500">(deleted)</span>@endif
                         </td>
                         <td class="px-3 py-3 text-sm text-gray-500">{{ $inv->issued_at->format('M d, Y') }}</td>
                         <td class="px-3 py-3 text-sm text-gray-500">{{ $inv->period_start->format('M d') }} → {{ $inv->period_end->format('M d, Y') }}</td>
@@ -81,12 +98,22 @@
                         <td class="px-3 py-3 text-sm">
                             <span class="inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ring-1 ring-inset {{ $inv->status_badge_classes }}">{{ $inv->status }}</span>
                         </td>
-                        <td class="py-3 pl-3 pr-4 text-right text-sm font-medium">
-                            <a href="{{ route('platform.invoices.show', $inv) }}" class="text-primary hover:underline">View</a>
+                        <td class="py-3 pl-3 pr-4 text-right text-sm font-medium flex justify-end gap-2">
+                            <a href="{{ route('platform.invoices.show', $inv->id) }}" class="text-primary hover:underline">View</a>
+                            @if($inv->trashed())
+                                <form action="{{ route('platform.invoices.restore', $inv->id) }}" method="POST">
+                                    @csrf
+                                    <button class="text-emerald-700 hover:underline">Restore</button>
+                                </form>
+                                <form action="{{ route('platform.invoices.forceDelete', $inv->id) }}" method="POST" onsubmit="return confirm('Permanently delete #{{ $inv->invoice_number }}? This cannot be undone.');">
+                                    @csrf @method('DELETE')
+                                    <button class="text-red-700 hover:underline">Force Delete</button>
+                                </form>
+                            @endif
                         </td>
                     </tr>
                 @empty
-                    <tr><td colspan="8" class="px-3 py-8 text-center text-sm text-gray-500">No invoices yet. They're auto-generated daily at 02:00 from active subscriptions.</td></tr>
+                    <tr><td colspan="8" class="px-3 py-8 text-center text-sm text-gray-500">@if(($view ?? 'active') === 'trashed') Nothing in the trash. @else No invoices yet. They're auto-generated daily at 02:00 from active subscriptions. @endif</td></tr>
                 @endforelse
             </tbody>
         </table>
