@@ -79,6 +79,8 @@ class PublicPaymentController extends Controller
             $data = $response['data'];
             $metadata = $data['metadata'];
             $invoiceId = $metadata['invoice_id'] ?? null;
+            // Settle at the pre-fee base — the gross includes the Paystack fee the payer absorbed
+            $amountPaid = isset($metadata['base_amount']) ? (float) $metadata['base_amount'] : $data['amount'] / 100;
 
             // Record Logic (Duplicated from PaymentController - should ideally be in a Service)
             // For speed, let's defer to the PaymentController logic if we can, or just duplicate relevant parts.
@@ -94,7 +96,7 @@ class PublicPaymentController extends Controller
                 'customer_id' => $metadata['customer_id'] ?? null,
                 'invoice_id' => $invoiceId,
                 'reference' => $reference,
-                'amount' => $data['amount'] / 100,
+                'amount' => $amountPaid,
                 'status' => 'Success',
                 'channel' => 'Paystack',
                 'paid_at' => now(),
@@ -105,7 +107,7 @@ class PublicPaymentController extends Controller
             if ($invoiceId) {
                 $invoice = Invoice::find($invoiceId);
                 if ($invoice) {
-                    $invoice->balance_due -= ($data['amount'] / 100);
+                    $invoice->balance_due -= $amountPaid;
                     if ($invoice->balance_due <= 0) {
                         $invoice->status = 'Paid';
                         $invoice->balance_due = 0;

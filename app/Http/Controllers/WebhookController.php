@@ -48,8 +48,10 @@ class WebhookController extends Controller
     protected function handleChargeSuccess($data, string $source = 'customer')
     {
         $reference = $data['reference'];
-        $amount = $data['amount'] / 100;
         $metadata = $data['metadata'] ?? [];
+        // Settle at the pre-fee base; the gross charge includes the Paystack
+        // processing fee the payer absorbed, which must not credit the invoice.
+        $amount = isset($metadata['base_amount']) ? (float) $metadata['base_amount'] : $data['amount'] / 100;
 
         Log::info("Paystack Webhook ({$source}): charge.success ref={$reference}");
 
@@ -104,7 +106,8 @@ class WebhookController extends Controller
         $billing = app(\App\Services\PlatformBillingService::class);
         $bundledIds = $metadata['bundled_invoices'] ?? null;
 
-        // If init-time conversion stashed the original amount, settle invoices in that currency.
+        // If init-time conversion stashed the original amount, settle invoices in that
+        // currency; otherwise fall back to the pre-fee base (already resolved into $amount).
         $originalAmount = isset($metadata['original_amount']) ? (float) $metadata['original_amount'] : $amount;
 
         if (is_array($bundledIds) && count($bundledIds) > 0) {

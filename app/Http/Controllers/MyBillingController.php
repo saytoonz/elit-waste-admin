@@ -235,8 +235,11 @@ class MyBillingController extends Controller
         $kind = $metadata['kind'] ?? 'platform_invoice';
 
         // When we converted USD→GHS at init time, we stashed the original amount.
-        // Use it to settle the invoice in its native currency.
-        $originalAmount = isset($metadata['original_amount']) ? (float) $metadata['original_amount'] : (float) $chargedAmount;
+        // Use it to settle the invoice in its native currency. Fall back to the
+        // pre-fee base — never the gross, which includes the Paystack fee.
+        $originalAmount = isset($metadata['original_amount'])
+            ? (float) $metadata['original_amount']
+            : (float) ($metadata['base_amount'] ?? $chargedAmount);
 
         // Idempotency: if any payment row with this reference already exists, just show success
         if (\App\Models\Platform\PlatformPayment::where('reference', $reference)->exists()) {

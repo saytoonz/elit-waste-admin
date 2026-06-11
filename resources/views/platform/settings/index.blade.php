@@ -38,6 +38,21 @@
                         class="mt-2 block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-primary sm:text-sm">{{ $maintenanceMessage }}</textarea>
                     <p class="text-xs text-gray-500 mt-1">Leave blank to use the default message.</p>
                 </div>
+
+                <div class="border-t border-gray-100 pt-5">
+                    <label for="paystack_fee_percent" class="block text-sm font-medium text-gray-900">Paystack Processing Fee (%)</label>
+                    <div class="mt-2 flex items-center gap-2">
+                        <input type="number" name="paystack_fee_percent" id="paystack_fee_percent" step="0.01" min="0" max="15"
+                               value="{{ old('paystack_fee_percent', $paystackFeePercent) }}"
+                               class="block w-32 rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-primary sm:text-sm">
+                        <span class="text-sm text-gray-500">%</span>
+                    </div>
+                    <p class="text-xs text-gray-500 mt-1">
+                        Added on top of <strong>every</strong> Paystack charge — platform invoices and waste-collection invoices alike — so the payer absorbs the gateway fee.
+                        Set to 0 to absorb fees yourself. Applies immediately to new payment initiations; invoices keep their face value.
+                    </p>
+                    @error('paystack_fee_percent')<p class="text-xs text-red-600 mt-1">{{ $message }}</p>@enderror
+                </div>
             </div>
 
             <div class="flex items-center justify-end gap-x-4 border-t border-gray-900/10 px-6 py-4">
@@ -52,7 +67,7 @@
             <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 text-sm">
                 <div>
                     <dt class="text-gray-500">Email Domain</dt>
-                    <dd class="font-mono text-gray-900">@{{ $emailDomain ?? '—' }}</dd>
+                    <dd class="font-mono text-gray-900">{{ $emailDomain ?? '—' }}</dd>
                 </div>
                 <div>
                     <dt class="text-gray-500">Provider Charge Currency</dt>

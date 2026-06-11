@@ -40,4 +40,19 @@ return [
     */
 
     'usd_to_ghs_rate' => (float) env('PLATFORM_USD_TO_GHS_RATE', 15.5),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Paystack Processing Fee (% added to every Paystack charge)
+    |--------------------------------------------------------------------------
+    |
+    | Paystack charges the merchant ~2% per transaction. This percentage is
+    | added on top of the amount at payment-init time so the payer absorbs it
+    | and the merchant nets the invoice amount. This is only the DEFAULT —
+    | the SuperAdmin can override it live from Platform Settings without a
+    | deploy (stored in the settings table).
+    |
+    */
+
+    'paystack_fee_percent' => (float) env('PLATFORM_PAYSTACK_FEE_PERCENT', 2.0),
 ];

@@ -14,8 +14,11 @@
                         <div>
                             <div class="text-xs uppercase text-gray-500">Unpaid Balance ({{ $row->currency }})</div>
                             <div class="text-2xl font-bold text-yellow-700 mt-1">{{ $row->currency }} {{ number_format($row->outstanding, 2) }}</div>
+                            @php $rowFees = \App\Services\PaystackService::feeBreakdown((float) ($row->charge_amount ?? $row->outstanding)); @endphp
                             @if(!empty($row->needs_conversion))
-                                <div class="text-sm text-gray-700 mt-1">≈ <span class="font-semibold">{{ $row->charge_currency }} {{ number_format($row->charge_amount, 2) }}</span> via Paystack <span class="text-xs text-gray-400">(rate {{ rtrim(rtrim(number_format($row->fx_rate, 4), '0'), '.') }})</span></div>
+                                <div class="text-sm text-gray-700 mt-1">≈ <span class="font-semibold">{{ $row->charge_currency }} {{ number_format($rowFees['gross'], 2) }}</span> via Paystack <span class="text-xs text-gray-400">(rate {{ rtrim(rtrim(number_format($row->fx_rate, 4), '0'), '.') }}@if($rowFees['fee'] > 0) + {{ rtrim(rtrim(number_format($rowFees['percent'], 2), '0'), '.') }}% fee@endif)</span></div>
+                            @elseif($rowFees['fee'] > 0)
+                                <div class="text-sm text-gray-700 mt-1">≈ <span class="font-semibold">{{ $row->charge_currency ?? $row->currency }} {{ number_format($rowFees['gross'], 2) }}</span> via Paystack <span class="text-xs text-gray-400">(incl. {{ rtrim(rtrim(number_format($rowFees['percent'], 2), '0'), '.') }}% fee)</span></div>
                             @endif
                             <div class="text-xs text-gray-500 mt-1">{{ $row->invoice_count }} invoice(s)</div>
                             @if(!empty($row->conversion_error))

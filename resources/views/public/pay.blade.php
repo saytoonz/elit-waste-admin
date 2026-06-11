@@ -26,6 +26,8 @@
                 <p class="text-sm text-gray-500 mt-2">Due Date: {{ $invoice->due_date->format('M d, Y') }}</p>
             </div>
 
+            @php $fees = \App\Services\PaystackService::feeBreakdown((float) $invoice->balance_due); @endphp
+
             <div class="bg-gray-50 rounded-lg p-4 mb-6 text-sm">
                 <div class="flex justify-between mb-2">
                     <span class="text-gray-500">Customer</span>
@@ -35,13 +37,23 @@
                     <span class="text-gray-500">Service</span>
                     <span class="font-medium text-gray-900">{{ $invoice->customer->subscription->billing_cycle ?? 'Waste Collection' }}</span>
                 </div>
+                @if($fees['fee'] > 0)
+                    <div class="flex justify-between mt-2 pt-2 border-t border-gray-200">
+                        <span class="text-gray-500">Processing fee ({{ rtrim(rtrim(number_format($fees['percent'], 2), '0'), '.') }}%)</span>
+                        <span class="font-medium text-gray-900">GHS {{ number_format($fees['fee'], 2) }}</span>
+                    </div>
+                    <div class="flex justify-between mt-2">
+                        <span class="text-gray-700 font-semibold">Total to pay</span>
+                        <span class="font-bold text-gray-900">GHS {{ number_format($fees['gross'], 2) }}</span>
+                    </div>
+                @endif
             </div>
 
             <form action="{{ route('public.pay.process', $invoice) }}" method="POST">
                 @csrf
                 <button type="submit" class="w-full bg-indigo-600 text-white rounded-lg py-3 font-semibold hover:bg-indigo-700 transition shadow-md flex justify-center items-center gap-2">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
-                    Pay Now
+                    Pay {{ $fees['fee'] > 0 ? 'GHS ' . number_format($fees['gross'], 2) : 'Now' }}
                 </button>
             </form>
              

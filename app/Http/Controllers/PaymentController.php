@@ -72,7 +72,9 @@ class PaymentController extends Controller
             $data = $response['data'];
             $metadata = $data['metadata'];
             $invoiceId = $metadata['invoice_id'] ?? null;
-            $amountPaid = $data['amount'] / 100; // Convert kobo to GHS
+            // Settle at the pre-fee base; the gross charge includes the Paystack
+            // processing fee the payer absorbed, which must not credit the invoice.
+            $amountPaid = isset($metadata['base_amount']) ? (float) $metadata['base_amount'] : $data['amount'] / 100;
 
             // Check if payment already recorded
             if (Payment::where('reference', $reference)->exists()) {
@@ -97,8 +99,8 @@ class PaymentController extends Controller
                 $invoice = Invoice::find($invoiceId);
                 if ($invoice) {
                     // Update Balance
-                    $invoice->balance_due -= ($data['amount'] / 100);
-                    
+                    $invoice->balance_due -= $amountPaid;
+
                     if ($invoice->balance_due <= 0) {
                         $invoice->status = 'Paid';
                         $invoice->balance_due = 0; // Ensure no negative
@@ -109,7 +111,7 @@ class PaymentController extends Controller
 
                     // Send SMS
                     if ($invoice->customer && $invoice->customer->phone) {
-                        $amount = number_format(($data['amount'] / 100), 2);
+                        $amount = number_format($amountPaid, 2);
                         $msg = "Payment Received: GHS {$amount} for Invoice #{$invoice->invoice_number}. Thanks! - Elite Waste";
                         \App\Jobs\SendSmsJob::dispatch($invoice->customer->phone, $msg);
                     }

@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Setting;
+use App\Support\PlatformConfig;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -58,10 +59,33 @@ class PaystackService
     }
 
     /**
-     * Initialize a transaction on Paystack
+     * Breakdown of what the payer is charged once the Paystack processing fee
+     * is passed on: base (what the merchant should net), fee, and gross total.
+     */
+    public static function feeBreakdown(float $amount): array
+    {
+        $percent = PlatformConfig::paystackFeePercent();
+        $base    = round($amount, 2);
+        $fee     = round($base * $percent / 100, 2);
+
+        return [
+            'percent' => $percent,
+            'base'    => $base,
+            'fee'     => $fee,
+            'gross'   => round($base + $fee, 2),
+        ];
+    }
+
+    /**
+     * Initialize a transaction on Paystack.
+     *
+     * The Paystack processing fee (Platform Settings, default ~2%) is added ON TOP
+     * of $amount so the payer absorbs it. The pre-fee base is stashed in metadata
+     * (base_amount / fee_amount / fee_percent); verification paths must settle
+     * invoices using base_amount, never the gross charged amount.
      *
      * @param string $email Customer email (Paystack requires one)
-     * @param float $amount Amount in major units (GHS, USD, etc.)
+     * @param float $amount Pre-fee amount in major units (GHS, USD, etc.)
      * @param string $callbackUrl URL to redirect to after payment
      * @param array $metadata Extra data carried through to the callback
      * @param string $currency 3-letter currency code (default GHS)
@@ -74,7 +98,14 @@ class PaystackService
             return ['status' => false, 'message' => 'Paystack is not configured for the ' . $this->profile . ' profile.'];
         }
 
-        $subunitAmount = (int) round($amount * 100);
+        $fees = self::feeBreakdown((float) $amount);
+        $metadata = array_merge($metadata, [
+            'base_amount' => $fees['base'],
+            'fee_percent' => $fees['percent'],
+            'fee_amount'  => $fees['fee'],
+        ]);
+
+        $subunitAmount = (int) round($fees['gross'] * 100);
         $currency = strtoupper($currency);
         if ($channels === null) {
             $channels = $currency === 'GHS' ? ['card', 'mobile_money'] : ['card'];

@@ -38,9 +38,13 @@
                 @if($invoice->balance_due > 0)
                 <div class="mt-6 flex flex-col gap-2 justify-end">
                     <!-- Paystack Button -->
+                     @php $payFees = \App\Services\PaystackService::feeBreakdown((float) $invoice->balance_due); @endphp
                      <a href="{{ route('payments.initiate', $invoice) }}" class="inline-flex w-full justify-center rounded-md bg-green-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-green-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-600">
                         Pay Online (Paystack)
                     </a>
+                    @if($payFees['fee'] > 0)
+                        <p class="text-xs text-gray-500 text-center">Charges GHS {{ number_format($payFees['gross'], 2) }} incl. {{ rtrim(rtrim(number_format($payFees['percent'], 2), '0'), '.') }}% processing fee</p>
+                    @endif
                     
                     <!-- Cash Payment Modal Trigger -->
                     <button onclick="document.getElementById('cash-modal').showModal()" class="inline-flex w-full justify-center rounded-md bg-white border border-gray-300 px-3 py-2 text-sm font-semibold text-gray-700 shadow-sm hover:bg-gray-50">
