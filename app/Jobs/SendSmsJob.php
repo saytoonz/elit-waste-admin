@@ -5,6 +5,7 @@ namespace App\Jobs;
 use App\Models\Platform\PlatformSubscription;
 use App\Models\Platform\SmsBundle;
 use App\Models\SmsBroadcast;
+use App\Models\SmsBroadcastRecipient;
 use App\Services\MyCSMSService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -25,6 +26,7 @@ class SendSmsJob implements ShouldQueue
         public string $message,
         public string $profile = self::PROFILE_CUSTOMER,
         public ?int $broadcastId = null,
+        public ?int $recipientId = null,
     ) {
     }
 
@@ -53,13 +55,13 @@ class SendSmsJob implements ShouldQueue
 
             if ($hasSmsSubscription) {
                 Log::warning("SMS skipped — no active bundle. Pay the SMS invoice to restore service. ({$this->phone})");
-                $this->recordBroadcastOutcome('skipped');
+                $this->recordBroadcastOutcome('skipped', 0, 'No active SMS bundle — pay the SMS invoice.');
                 return;
             }
 
             Log::info("SMS (no bundle, no subscription — legacy path) sending unmetered to {$this->phone}");
             $sent = $this->dispatchToGateway($smsService);
-            $this->recordBroadcastOutcome($sent ? 'sent' : 'failed');
+            $this->recordBroadcastOutcome($sent ? 'sent' : 'failed', 0, $sent ? null : 'Gateway rejected the message.');
             return;
         }
 
@@ -68,7 +70,7 @@ class SendSmsJob implements ShouldQueue
 
         if (!$bundle->consume($credits)) {
             Log::warning("SMS skipped — bundle #{$bundle->id} lacks {$credits} credit(s), or is exhausted/expired ({$this->phone})");
-            $this->recordBroadcastOutcome('skipped');
+            $this->recordBroadcastOutcome('skipped', 0, "Needs {$credits} credit(s) — bundle exhausted, expired, or short.");
             return;
         }
 
@@ -84,7 +86,7 @@ class SendSmsJob implements ShouldQueue
             Log::info("Refunded {$credits} SMS credit(s) to bundle #{$bundle->id} after gateway failure");
         }
 
-        $this->recordBroadcastOutcome($sent ? 'sent' : 'failed', $sent ? $credits : 0);
+        $this->recordBroadcastOutcome($sent ? 'sent' : 'failed', $sent ? $credits : 0, $sent ? null : 'Gateway rejected the message.');
     }
 
     /**
@@ -100,16 +102,32 @@ class SendSmsJob implements ShouldQueue
     }
 
     /**
-     * If this send belongs to a broadcast, tally the outcome on it and mark the
-     * broadcast Completed once every recipient has been processed.
+     * If this send belongs to a broadcast, record the outcome on the recipient row
+     * and resync the broadcast counters (drift-free under retries). Falls back to
+     * plain counter increments for jobs queued before per-recipient tracking.
      */
-    protected function recordBroadcastOutcome(string $outcome, int $credits = 0): void
+    protected function recordBroadcastOutcome(string $outcome, int $credits = 0, ?string $error = null): void
     {
         if (!$this->broadcastId) return;
 
         $broadcast = SmsBroadcast::find($this->broadcastId);
         if (!$broadcast) return;
 
+        if ($this->recipientId) {
+            $recipient = SmsBroadcastRecipient::find($this->recipientId);
+            if ($recipient) {
+                $recipient->update([
+                    'status'  => ucfirst($outcome), // Sent | Failed | Skipped
+                    'credits' => $credits,
+                    'error'   => $error,
+                    'sent_at' => $outcome === 'sent' ? now() : null,
+                ]);
+            }
+            $broadcast->syncCountersFromRecipients();
+            return;
+        }
+
+        // Legacy jobs without a recipient row
         $column = match ($outcome) {
             'sent'    => 'sent_count',
             'failed'  => 'failed_count',

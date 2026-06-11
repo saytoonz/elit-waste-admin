@@ -83,6 +83,8 @@ Route::middleware(['auth', 'platform.block'])->group(function () {
         Route::put('/{sms_broadcast}', [\App\Http\Controllers\SmsBroadcastController::class, 'update'])->name('update');
         Route::delete('/{sms_broadcast}', [\App\Http\Controllers\SmsBroadcastController::class, 'destroy'])->name('destroy');
         Route::post('/{sms_broadcast}/send-now', [\App\Http\Controllers\SmsBroadcastController::class, 'sendNow'])->name('sendNow');
+        Route::post('/{sms_broadcast}/retry-failed', [\App\Http\Controllers\SmsBroadcastController::class, 'retryFailed'])->name('retryFailed');
+        Route::post('/{sms_broadcast}/recipients/{recipient}/retry', [\App\Http\Controllers\SmsBroadcastController::class, 'retryRecipient'])->name('retryRecipient');
     });
 
     // Settings

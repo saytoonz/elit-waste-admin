@@ -108,6 +108,86 @@
             @endif
         </div>
 
+        <!-- Recipients -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+            <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+                <h3 class="text-base font-semibold text-gray-900">Recipients</h3>
+                @if($broadcast->failed_count + $broadcast->skipped_count > 0)
+                    <form action="{{ route('sms_broadcasts.retryFailed', $broadcast) }}" method="POST"
+                          onsubmit="return confirm('Retry all failed and skipped recipients? Successful sends will use SMS credits.')">
+                        @csrf
+                        <button class="rounded-md bg-amber-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-amber-500">
+                            ↻ Retry Failed & Skipped ({{ number_format($broadcast->failed_count + $broadcast->skipped_count) }})
+                        </button>
+                    </form>
+                @endif
+            </div>
+
+            @if($recipients->isNotEmpty())
+                <div class="overflow-x-auto">
+                    <table class="min-w-full text-sm">
+                        <thead>
+                            <tr class="border-b border-gray-200">
+                                <th class="py-2 pr-3 text-left text-xs font-semibold text-gray-700 uppercase">Customer</th>
+                                <th class="py-2 pr-3 text-left text-xs font-semibold text-gray-700 uppercase">Phone</th>
+                                <th class="py-2 pr-3 text-left text-xs font-semibold text-gray-700 uppercase">Message</th>
+                                <th class="py-2 pr-3 text-right text-xs font-semibold text-gray-700 uppercase">Credits</th>
+                                <th class="py-2 pr-3 text-left text-xs font-semibold text-gray-700 uppercase">Status</th>
+                                <th class="py-2 pr-3 text-left text-xs font-semibold text-gray-700 uppercase">Sent At</th>
+                                <th class="py-2 text-right text-xs font-semibold text-gray-700 uppercase"></th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100">
+                            @foreach($recipients as $r)
+                                <tr>
+                                    <td class="py-2 pr-3 text-gray-900">
+                                        @if($r->customer_id)
+                                            <a href="{{ route('customers.show', $r->customer_id) }}" class="hover:underline">{{ $r->name }}</a>
+                                        @else
+                                            {{ $r->name ?? '—' }}
+                                        @endif
+                                    </td>
+                                    <td class="py-2 pr-3 text-gray-600 whitespace-nowrap">{{ $r->phone }}</td>
+                                    <td class="py-2 pr-3 text-gray-600 max-w-xs truncate" title="{{ $r->message }}">{{ \Illuminate\Support\Str::limit($r->message, 50) }}</td>
+                                    <td class="py-2 pr-3 text-right">{{ $r->credits > 0 ? number_format($r->credits) : '—' }}</td>
+                                    <td class="py-2 pr-3">
+                                        @php
+                                            $rBadge = match ($r->status) {
+                                                'Sent'    => 'bg-green-50 text-green-700 ring-green-600/20',
+                                                'Failed'  => 'bg-red-50 text-red-700 ring-red-600/20',
+                                                'Skipped' => 'bg-amber-50 text-amber-700 ring-amber-600/20',
+                                                default   => 'bg-blue-50 text-blue-700 ring-blue-600/20',
+                                            };
+                                        @endphp
+                                        <span class="inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ring-1 ring-inset {{ $rBadge }}">{{ $r->status }}</span>
+                                        @if($r->error)<div class="text-xs text-gray-500 mt-0.5 max-w-[16rem]">{{ $r->error }}</div>@endif
+                                    </td>
+                                    <td class="py-2 pr-3 text-gray-500 whitespace-nowrap text-xs">{{ $r->sent_at?->format('M d, H:i:s') ?? '—' }}</td>
+                                    <td class="py-2 text-right">
+                                        @if($r->isRetryable())
+                                            <form action="{{ route('sms_broadcasts.retryRecipient', [$broadcast, $r]) }}" method="POST" class="inline">
+                                                @csrf
+                                                <button class="rounded-md bg-white px-2.5 py-1 text-xs font-semibold text-amber-700 ring-1 ring-inset ring-amber-300 hover:bg-amber-50">↻ Retry</button>
+                                            </form>
+                                        @endif
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+                <div class="mt-3">{{ $recipients->links() }}</div>
+            @else
+                <p class="text-sm text-gray-500">
+                    @if(in_array($broadcast->status, ['Draft', 'Scheduled']))
+                        Recipients are resolved when the broadcast is sent.
+                    @else
+                        No per-recipient log for this broadcast (sent before delivery tracking was added).
+                    @endif
+                </p>
+            @endif
+        </div>
+
         <div>
             <a href="{{ route('sms_broadcasts.index') }}" class="text-sm text-primary hover:underline">← Back to broadcasts</a>
         </div>

@@ -53,6 +53,39 @@ class SmsBroadcast extends Model
         return $this->belongsTo(User::class, 'created_by');
     }
 
+    public function recipients()
+    {
+        return $this->hasMany(SmsBroadcastRecipient::class);
+    }
+
+    /**
+     * Recompute the cached counters from the recipient rows. Drift-free under
+     * retries: a recipient flipping Failed → Sent moves between counters
+     * instead of double-counting.
+     */
+    public function syncCountersFromRecipients(): void
+    {
+        $agg = SmsBroadcastRecipient::where('sms_broadcast_id', $this->id)
+            ->selectRaw("
+                count(*) as total,
+                sum(case when status = 'Sent' then 1 else 0 end) as sent,
+                sum(case when status = 'Failed' then 1 else 0 end) as failed,
+                sum(case when status = 'Skipped' then 1 else 0 end) as skipped,
+                sum(case when status = 'Queued' then 1 else 0 end) as queued,
+                sum(case when status = 'Sent' then credits else 0 end) as credits
+            ")
+            ->first();
+
+        $this->update([
+            'recipients_count' => (int) $agg->total,
+            'sent_count'       => (int) $agg->sent,
+            'failed_count'     => (int) $agg->failed,
+            'skipped_count'    => (int) $agg->skipped,
+            'credits_used'     => (int) $agg->credits,
+            'status'           => ((int) $agg->queued) > 0 ? 'Processing' : 'Completed',
+        ]);
+    }
+
     public function getProcessedCountAttribute(): int
     {
         return $this->sent_count + $this->failed_count + $this->skipped_count;

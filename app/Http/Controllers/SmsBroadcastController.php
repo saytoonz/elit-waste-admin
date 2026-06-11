@@ -111,7 +111,37 @@ class SmsBroadcastController extends Controller
     public function show(SmsBroadcast $sms_broadcast)
     {
         $sms_broadcast->load('creator');
-        return view('sms_broadcasts.show', ['broadcast' => $sms_broadcast]);
+        $recipients = $sms_broadcast->recipients()
+            ->orderByRaw("case status when 'Failed' then 0 when 'Skipped' then 1 when 'Queued' then 2 else 3 end")
+            ->orderBy('name')
+            ->paginate(50);
+
+        return view('sms_broadcasts.show', ['broadcast' => $sms_broadcast, 'recipients' => $recipients]);
+    }
+
+    /** Re-queue every Failed/Skipped recipient of this broadcast. */
+    public function retryFailed(SmsBroadcast $sms_broadcast)
+    {
+        if (in_array($sms_broadcast->status, ['Draft', 'Scheduled'], true)) {
+            return back()->with('error', 'This broadcast has not been sent yet.');
+        }
+
+        $count = $this->broadcasts->retryRecipients($sms_broadcast);
+        return $count > 0
+            ? back()->with('success', "Re-queued {$count} recipient(s).")
+            : back()->with('error', 'No failed or skipped recipients to retry.');
+    }
+
+    /** Re-queue a single Failed/Skipped recipient. */
+    public function retryRecipient(SmsBroadcast $sms_broadcast, \App\Models\SmsBroadcastRecipient $recipient)
+    {
+        if ($recipient->sms_broadcast_id !== $sms_broadcast->id) abort(404);
+        if (!$recipient->isRetryable()) {
+            return back()->with('error', 'Only failed or skipped recipients can be retried.');
+        }
+
+        $this->broadcasts->retryRecipients($sms_broadcast, $recipient);
+        return back()->with('success', "Re-queued {$recipient->name}.");
     }
 
     // ─────────────────────────────────────────────────────────────────────────

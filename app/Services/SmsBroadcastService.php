@@ -7,6 +7,7 @@ use App\Models\Customer;
 use App\Models\Platform\PlatformSubscription;
 use App\Models\Platform\SmsBundle;
 use App\Models\SmsBroadcast;
+use App\Models\SmsBroadcastRecipient;
 use Illuminate\Support\Facades\Log;
 
 class SmsBroadcastService
@@ -115,6 +116,9 @@ class SmsBroadcastService
             return $error;
         }
 
+        // Fresh attempt: drop any recipient rows from a previous failed launch
+        $broadcast->recipients()->delete();
+
         $broadcast->update([
             'recipients_count'  => $recipients->count(),
             'credits_estimated' => $creditsNeeded,
@@ -126,11 +130,43 @@ class SmsBroadcastService
             'failure_reason'    => null,
         ]);
 
-        foreach ($messages as $m) {
-            SendSmsJob::dispatch($m['phone'], $m['body'], SendSmsJob::PROFILE_CUSTOMER, $broadcast->id);
+        foreach ($recipients as $i => $customer) {
+            $row = SmsBroadcastRecipient::create([
+                'sms_broadcast_id' => $broadcast->id,
+                'customer_id'      => $customer->id,
+                'name'             => $customer->name,
+                'phone'            => $customer->phone,
+                'message'          => $messages[$i]['body'],
+                'status'           => 'Queued',
+            ]);
+            SendSmsJob::dispatch($row->phone, $row->message, SendSmsJob::PROFILE_CUSTOMER, $broadcast->id, $row->id);
         }
 
         AuditService::log('Launched SMS Broadcast', "#{$broadcast->id} to {$recipients->count()} customer(s), ~{$creditsNeeded} credit(s)");
         return null;
+    }
+
+    /**
+     * Re-queue Failed/Skipped recipients of a broadcast. Returns how many were retried.
+     */
+    public function retryRecipients(SmsBroadcast $broadcast, ?SmsBroadcastRecipient $only = null): int
+    {
+        $query = $broadcast->recipients()->whereIn('status', ['Failed', 'Skipped']);
+        if ($only) {
+            $query->whereKey($only->id);
+        }
+        $rows = $query->get();
+
+        foreach ($rows as $row) {
+            $row->update(['status' => 'Queued', 'error' => null]);
+            SendSmsJob::dispatch($row->phone, $row->message, SendSmsJob::PROFILE_CUSTOMER, $broadcast->id, $row->id);
+        }
+
+        if ($rows->isNotEmpty()) {
+            $broadcast->syncCountersFromRecipients();
+            AuditService::log('Retried SMS Broadcast Recipients', "#{$broadcast->id}: {$rows->count()} recipient(s)");
+        }
+
+        return $rows->count();
     }
 }
