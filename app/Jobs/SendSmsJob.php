@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Models\Platform\PlatformSubscription;
 use App\Models\Platform\SmsBundle;
+use App\Models\SmsBroadcast;
 use App\Services\MyCSMSService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -23,6 +24,7 @@ class SendSmsJob implements ShouldQueue
         public string $phone,
         public string $message,
         public string $profile = self::PROFILE_CUSTOMER,
+        public ?int $broadcastId = null,
     ) {
     }
 
@@ -51,26 +53,38 @@ class SendSmsJob implements ShouldQueue
 
             if ($hasSmsSubscription) {
                 Log::warning("SMS skipped — no active bundle. Pay the SMS invoice to restore service. ({$this->phone})");
+                $this->recordBroadcastOutcome('skipped');
                 return;
             }
 
             Log::info("SMS (no bundle, no subscription — legacy path) sending unmetered to {$this->phone}");
-            $this->dispatchToGateway($smsService);
+            $sent = $this->dispatchToGateway($smsService);
+            $this->recordBroadcastOutcome($sent ? 'sent' : 'failed');
             return;
         }
 
-        if (!$bundle->consumeOne()) {
-            Log::warning("SMS skipped — bundle #{$bundle->id} exhausted or expired ({$this->phone})");
+        // 1 credit per 160 characters (161 chars = 2 credits, etc.)
+        $credits = SmsBundle::creditsFor($this->message);
+
+        if (!$bundle->consume($credits)) {
+            Log::warning("SMS skipped — bundle #{$bundle->id} lacks {$credits} credit(s), or is exhausted/expired ({$this->phone})");
+            $this->recordBroadcastOutcome('skipped');
             return;
         }
 
         $sent = $this->dispatchToGateway($smsService);
 
         if (!$sent) {
-            // Refund the consumed unit so we don't penalize the customer for an upstream failure
-            $bundle->decrement('quantity_used');
-            Log::info("Refunded 1 SMS to bundle #{$bundle->id} after gateway failure");
+            // Refund the consumed credits so we don't penalize the customer for an upstream failure
+            $bundle->decrement('quantity_used', $credits);
+            $bundle->refresh();
+            if ($bundle->status === 'Exhausted' && $bundle->quantity_used < $bundle->quantity_total) {
+                $bundle->update(['status' => 'Active']);
+            }
+            Log::info("Refunded {$credits} SMS credit(s) to bundle #{$bundle->id} after gateway failure");
         }
+
+        $this->recordBroadcastOutcome($sent ? 'sent' : 'failed', $sent ? $credits : 0);
     }
 
     /**
@@ -83,5 +97,35 @@ class SendSmsJob implements ShouldQueue
             Log::warning("SMS Job failed at gateway for {$this->phone}");
         }
         return $success;
+    }
+
+    /**
+     * If this send belongs to a broadcast, tally the outcome on it and mark the
+     * broadcast Completed once every recipient has been processed.
+     */
+    protected function recordBroadcastOutcome(string $outcome, int $credits = 0): void
+    {
+        if (!$this->broadcastId) return;
+
+        $broadcast = SmsBroadcast::find($this->broadcastId);
+        if (!$broadcast) return;
+
+        $column = match ($outcome) {
+            'sent'    => 'sent_count',
+            'failed'  => 'failed_count',
+            'skipped' => 'skipped_count',
+            default   => null,
+        };
+        if (!$column) return;
+
+        $broadcast->increment($column);
+        if ($credits > 0) {
+            $broadcast->increment('credits_used', $credits);
+        }
+
+        $broadcast->refresh();
+        if ($broadcast->processed_count >= $broadcast->recipients_count && $broadcast->status !== 'Completed') {
+            $broadcast->update(['status' => 'Completed']);
+        }
     }
 }

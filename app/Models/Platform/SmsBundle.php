@@ -68,16 +68,31 @@ class SmsBundle extends Model
         return $this->remaining > 0;
     }
 
+    /** One SMS credit covers up to this many characters; longer messages cost extra credits. */
+    public const CHARS_PER_CREDIT = 160;
+
     /**
-     * Atomically consume one message from the bundle. Returns true if a slot was
-     * reserved, false if the bundle is exhausted or expired.
+     * How many SMS credits a message costs: 1 credit per 160 characters (or part thereof).
+     * 160 chars = 1 credit, 161 chars = 2 credits, 321 chars = 3 credits, ...
+     */
+    public static function creditsFor(string $message): int
+    {
+        return max(1, (int) ceil(mb_strlen($message) / self::CHARS_PER_CREDIT));
+    }
+
+    /**
+     * Atomically consume $credits from the bundle. Returns true if the full amount
+     * was reserved, false if the bundle is expired, inactive, or doesn't have
+     * enough credits left (no partial consumption).
      *
      * Uses a SELECT ... FOR UPDATE row lock inside a transaction to avoid
      * concurrent overshoot when multiple SMS jobs race.
      */
-    public function consumeOne(): bool
+    public function consume(int $credits = 1): bool
     {
-        return DB::transaction(function () {
+        $credits = max(1, $credits);
+
+        return DB::transaction(function () use ($credits) {
             $fresh = static::where('id', $this->id)->lockForUpdate()->first();
             if (!$fresh) return false;
 
@@ -90,8 +105,12 @@ class SmsBundle extends Model
                 $fresh->update(['status' => 'Exhausted']);
                 return false;
             }
+            if ($fresh->quantity_total - $fresh->quantity_used < $credits) {
+                // Not enough left for this message — leave the remainder untouched
+                return false;
+            }
 
-            $fresh->quantity_used += 1;
+            $fresh->quantity_used += $credits;
             if ($fresh->quantity_used >= $fresh->quantity_total) {
                 $fresh->status = 'Exhausted';
             }

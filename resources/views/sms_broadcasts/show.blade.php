@@ -1,0 +1,77 @@
+<x-app-layout>
+    @section('header') Broadcast #{{ $broadcast->id }} @endsection
+
+    <div class="max-w-4xl mx-auto space-y-6">
+
+        @if(session('success'))
+            <div class="rounded-md bg-green-50 p-4 text-sm text-green-700 border border-green-200">{{ session('success') }}</div>
+        @endif
+
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 space-y-4">
+            <div class="flex flex-wrap items-start justify-between gap-4">
+                <div>
+                    <h2 class="text-lg font-semibold text-gray-900">SMS Broadcast</h2>
+                    <p class="text-sm text-gray-600 mt-1">
+                        {{ $broadcast->created_at->format('M d, Y H:i') }}
+                        @if($broadcast->creator) · by {{ $broadcast->creator->name }} @endif
+                    </p>
+                </div>
+                <span class="inline-flex items-center rounded-md px-2.5 py-1 text-xs font-medium ring-1 ring-inset
+                    {{ $broadcast->status === 'Completed' ? 'bg-green-50 text-green-700 ring-green-600/20' : 'bg-blue-50 text-blue-700 ring-blue-600/20' }}">
+                    {{ $broadcast->status }}
+                </span>
+            </div>
+
+            <div>
+                <p class="text-xs font-semibold text-gray-500 uppercase mb-1">Audience</p>
+                <p class="text-sm text-gray-700">{{ $broadcast->audience_summary }}</p>
+            </div>
+
+            <div>
+                <p class="text-xs font-semibold text-gray-500 uppercase mb-1">Message</p>
+                <p class="text-sm text-gray-900 whitespace-pre-wrap bg-gray-50 rounded-md p-3 border border-gray-100">{{ $broadcast->message }}</p>
+            </div>
+
+            <div class="grid grid-cols-2 sm:grid-cols-5 gap-4 pt-2 border-t border-gray-100">
+                <div>
+                    <div class="text-xs uppercase text-gray-500">Recipients</div>
+                    <div class="text-xl font-bold text-gray-900 mt-1">{{ number_format($broadcast->recipients_count) }}</div>
+                </div>
+                <div>
+                    <div class="text-xs uppercase text-gray-500">Sent</div>
+                    <div class="text-xl font-bold text-emerald-700 mt-1">{{ number_format($broadcast->sent_count) }}</div>
+                </div>
+                <div>
+                    <div class="text-xs uppercase text-gray-500">Failed</div>
+                    <div class="text-xl font-bold {{ $broadcast->failed_count > 0 ? 'text-red-700' : 'text-gray-900' }} mt-1">{{ number_format($broadcast->failed_count) }}</div>
+                </div>
+                <div>
+                    <div class="text-xs uppercase text-gray-500">Skipped</div>
+                    <div class="text-xl font-bold {{ $broadcast->skipped_count > 0 ? 'text-amber-600' : 'text-gray-900' }} mt-1">{{ number_format($broadcast->skipped_count) }}</div>
+                </div>
+                <div>
+                    <div class="text-xs uppercase text-gray-500">Credits Used</div>
+                    <div class="text-xl font-bold text-gray-900 mt-1">{{ number_format($broadcast->credits_used) }} <span class="text-sm font-normal text-gray-400">/ ~{{ number_format($broadcast->credits_estimated) }}</span></div>
+                </div>
+            </div>
+
+            @if($broadcast->status === 'Processing')
+                <div>
+                    <div class="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+                        <div class="h-2 bg-blue-500" style="width: {{ min(100, $broadcast->progress_percent) }}%"></div>
+                    </div>
+                    <p class="text-xs text-gray-500 mt-2">{{ number_format($broadcast->processed_count) }} of {{ number_format($broadcast->recipients_count) }} processed — this page refreshes every 10 seconds.</p>
+                </div>
+                <script>setTimeout(() => window.location.reload(), 10000);</script>
+            @endif
+
+            @if($broadcast->skipped_count > 0)
+                <p class="text-xs text-amber-700">Skipped = blocked by SMS credit quota (bundle exhausted, expired, or message didn't fit remaining credits).</p>
+            @endif
+        </div>
+
+        <div>
+            <a href="{{ route('sms_broadcasts.index') }}" class="text-sm text-primary hover:underline">← Back to broadcasts</a>
+        </div>
+    </div>
+</x-app-layout>

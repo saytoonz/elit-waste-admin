@@ -72,6 +72,15 @@ Route::middleware(['auth', 'platform.block'])->group(function () {
     Route::post('payments/cash/{invoice}', [\App\Http\Controllers\PaymentController::class, 'recordCash'])->name('payments.cash');
     Route::get('/payments/{payment}/print', [\App\Http\Controllers\PaymentController::class, 'print'])->name('payments.print');
 
+    // SMS Broadcasts (message customers by zone, type, debtors, or selection)
+    Route::middleware('role:Owner|Admin')->prefix('sms-broadcasts')->name('sms_broadcasts.')->group(function () {
+        Route::get('/', [\App\Http\Controllers\SmsBroadcastController::class, 'index'])->name('index');
+        Route::get('/create', [\App\Http\Controllers\SmsBroadcastController::class, 'create'])->name('create');
+        Route::post('/estimate', [\App\Http\Controllers\SmsBroadcastController::class, 'estimate'])->name('estimate');
+        Route::post('/', [\App\Http\Controllers\SmsBroadcastController::class, 'store'])->name('store');
+        Route::get('/{sms_broadcast}', [\App\Http\Controllers\SmsBroadcastController::class, 'show'])->name('show');
+    });
+
     // Settings
     Route::get('/settings', [\App\Http\Controllers\SettingsController::class, 'index'])->name('settings.index')->middleware('role:Owner|Admin');
     Route::post('/settings', [\App\Http\Controllers\SettingsController::class, 'update'])->name('settings.update')->middleware('role:Owner|Admin');

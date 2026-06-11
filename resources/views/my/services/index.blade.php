@@ -43,13 +43,13 @@
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 mb-6">
             <div class="flex items-center justify-between mb-3">
                 <div>
-                    <h3 class="text-base font-semibold text-gray-900">SMS Bundle</h3>
+                    <h3 class="text-base font-semibold text-gray-900">SMS Credits</h3>
                     <p class="text-xs text-gray-500 mt-0.5">Expires {{ $activeSmsBundle->period_end->format('M d, Y') }} ({{ $smsDays }} day{{ $smsDays === 1 ? '' : 's' }} left)</p>
                 </div>
                 <a href="{{ route('my.sms.index') }}" class="text-xs text-primary hover:underline">View history →</a>
             </div>
             <div class="grid grid-cols-3 gap-3 text-sm mb-3">
-                <div><div class="text-xs text-gray-500">Quota</div><div class="font-semibold text-gray-900">{{ number_format($activeSmsBundle->quantity_total) }}</div></div>
+                <div><div class="text-xs text-gray-500">Credits</div><div class="font-semibold text-gray-900">{{ number_format($activeSmsBundle->quantity_total) }}</div></div>
                 <div><div class="text-xs text-gray-500">Used</div><div class="font-semibold text-gray-900">{{ number_format($activeSmsBundle->quantity_used) }}</div></div>
                 <div><div class="text-xs text-gray-500">Remaining</div><div class="font-semibold {{ $activeSmsBundle->remaining === 0 ? 'text-red-700' : 'text-emerald-700' }}">{{ number_format($activeSmsBundle->remaining) }}</div></div>
             </div>

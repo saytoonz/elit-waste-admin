@@ -18,13 +18,14 @@
                         <div>
                             <h2 class="text-xl font-semibold text-gray-900">Active Bundle</h2>
                             <p class="text-sm text-gray-600 mt-1">Valid {{ $bundle->period_start->format('M d, Y') }} → <span class="font-semibold">{{ $bundle->period_end->format('M d, Y') }}</span> ({{ $daysLeft }} day{{ $daysLeft === 1 ? '' : 's' }} left)</p>
+                            <p class="text-xs text-gray-500 mt-1">1 credit = 1 SMS of up to 160 characters. Longer messages use 1 extra credit per additional 160 characters.</p>
                         </div>
                         <span class="inline-flex items-center rounded-md px-2.5 py-1 text-xs font-medium bg-green-50 text-green-700 ring-1 ring-inset ring-green-600/20">Active</span>
                     </div>
 
                     <div class="mt-6 grid grid-cols-2 sm:grid-cols-4 gap-4">
                         <div>
-                            <div class="text-xs uppercase text-gray-500">Total</div>
+                            <div class="text-xs uppercase text-gray-500">Total Credits</div>
                             <div class="text-2xl font-bold text-gray-900 mt-1">{{ number_format($bundle->quantity_total) }}</div>
                         </div>
                         <div>
@@ -48,7 +49,7 @@
                         @if($usagePct >= 90)
                             <p class="text-xs text-red-700 mt-2 font-medium">⚠ Less than 10% remaining — consider topping up.</p>
                         @elseif($daysLeft <= 5 && $daysLeft >= 0)
-                            <p class="text-xs text-yellow-700 mt-2 font-medium">⚠ Expires in {{ $daysLeft }} day{{ $daysLeft === 1 ? '' : 's' }} — unused messages don't roll over.</p>
+                            <p class="text-xs text-yellow-700 mt-2 font-medium">⚠ Expires in {{ $daysLeft }} day{{ $daysLeft === 1 ? '' : 's' }} — unused credits don't roll over.</p>
                         @endif
                     </div>
 

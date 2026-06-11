@@ -275,8 +275,10 @@ class PlatformBillingService
     }
 
     /**
-     * For any SMS-type subscription on this paid invoice, create the SMS bundle
-     * (quantity = subscription qty × service.sms_messages_per_unit × cycles_covered).
+     * For any SMS-type subscription on this paid invoice, create the SMS credit bundle
+     * (credits = subscription qty × service.sms_messages_per_unit × cycles_covered).
+     * Validity ALWAYS starts the day payment lands — never backdated to the invoice
+     * period, so the customer gets the full window from the day they pay.
      * Idempotent — won't create a duplicate bundle for the same invoice+subscription.
      */
     protected function fulfillSmsBundles(PlatformInvoice $invoice): void
@@ -295,23 +297,33 @@ class PlatformBillingService
                 ->exists();
             if ($exists) continue;
 
-            $messagesPerUnit = (int) ($service->sms_messages_per_unit ?? 1000);
-            if ($messagesPerUnit <= 0) continue;
+            $creditsPerUnit = (int) ($service->sms_messages_per_unit ?? 1000);
+            if ($creditsPerUnit <= 0) continue;
 
-            $total = $sub->quantity * $messagesPerUnit * max(1, (int) $invoice->cycles_covered);
+            $cycles = max(1, (int) $invoice->cycles_covered);
+            $total  = $sub->quantity * $creditsPerUnit * $cycles;
+
+            $start = Carbon::today();
+            $end = match ($sub->billing_cycle) {
+                'Monthly'   => $start->copy()->addMonths($cycles),
+                'Quarterly' => $start->copy()->addMonths(3 * $cycles),
+                'Yearly'    => $start->copy()->addYears($cycles),
+                default     => $start->copy()->addMonths($cycles),
+            };
+            $end = $end->subDay();
 
             SmsBundle::create([
                 'platform_subscription_id' => $sub->id,
                 'platform_invoice_id'      => $invoice->id,
                 'quantity_total'           => $total,
                 'quantity_used'            => 0,
-                'period_start'             => $invoice->period_start,
-                'period_end'               => $invoice->period_end,
+                'period_start'             => $start->toDateString(),
+                'period_end'               => $end->toDateString(),
                 'status'                   => 'Active',
                 'notes'                    => "Fulfilled by invoice #{$invoice->invoice_number}",
             ]);
 
-            AuditService::log('SMS Bundle Fulfilled', "{$total} messages valid {$invoice->period_start->format('Y-m-d')} → {$invoice->period_end->format('Y-m-d')}");
+            AuditService::log('SMS Bundle Fulfilled', "{$total} credits valid {$start->format('Y-m-d')} → {$end->format('Y-m-d')}");
         }
     }
 
