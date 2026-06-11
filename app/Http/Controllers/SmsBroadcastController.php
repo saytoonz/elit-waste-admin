@@ -2,17 +2,20 @@
 
 namespace App\Http\Controllers;
 
-use App\Jobs\SendSmsJob;
 use App\Models\Customer;
-use App\Models\Platform\PlatformSubscription;
 use App\Models\Platform\SmsBundle;
 use App\Models\SmsBroadcast;
 use App\Models\Zone;
 use App\Services\AuditService;
+use App\Services\SmsBroadcastService;
 use Illuminate\Http\Request;
 
 class SmsBroadcastController extends Controller
 {
+    public function __construct(protected SmsBroadcastService $broadcasts)
+    {
+    }
+
     public function index()
     {
         $broadcasts = SmsBroadcast::with('creator')->latest()->paginate(15);
@@ -23,11 +26,17 @@ class SmsBroadcastController extends Controller
 
     public function create()
     {
-        $zones = Zone::where('is_active', true)->orderBy('name')->get();
-        $customers = Customer::where('is_active', true)->orderBy('name')->get(['id', 'name', 'phone']);
-        $bundle = SmsBundle::findActive();
+        return view('sms_broadcasts.create', $this->formData() + ['broadcast' => null]);
+    }
 
-        return view('sms_broadcasts.create', compact('zones', 'customers', 'bundle'));
+    public function edit(SmsBroadcast $sms_broadcast)
+    {
+        if (!$sms_broadcast->isEditable()) {
+            return redirect()->route('sms_broadcasts.show', $sms_broadcast)
+                ->with('error', 'Only draft, scheduled or failed broadcasts can be edited.');
+        }
+
+        return view('sms_broadcasts.create', $this->formData() + ['broadcast' => $sms_broadcast]);
     }
 
     /**
@@ -36,77 +45,67 @@ class SmsBroadcastController extends Controller
      */
     public function estimate(Request $request)
     {
-        $data = $this->validateFilters($request, requireMessage: false);
-        $recipients = $this->resolveRecipients($data);
-
-        $message = (string) $request->input('message', '');
-        $creditsNeeded = 0;
-        foreach ($recipients as $r) {
-            $creditsNeeded += SmsBundle::creditsFor($this->personalize($message ?: ' ', $r));
-        }
+        $data = $this->validateInput($request, requireMessage: false);
+        [$recipients, , $creditsNeeded] = $this->broadcasts->prepare((string) ($data['message'] ?? ' '), $data);
 
         $bundle = SmsBundle::findActive();
 
         return response()->json([
-            'recipients'      => $recipients->count(),
-            'credits_needed'  => $creditsNeeded,
-            'credits_left'    => $bundle?->remaining,
-            'sufficient'      => $bundle ? ($bundle->remaining >= $creditsNeeded) : null,
+            'recipients'     => $recipients->count(),
+            'credits_needed' => $creditsNeeded,
+            'credits_left'   => $bundle?->remaining,
+            'sufficient'     => $bundle ? ($bundle->remaining >= $creditsNeeded) : null,
         ]);
     }
 
     public function store(Request $request)
     {
-        $data = $this->validateFilters($request, requireMessage: true);
+        $data = $this->validateInput($request, requireMessage: true);
 
-        $recipients = $this->resolveRecipients($data);
-        if ($recipients->isEmpty()) {
-            return back()->withInput()->with('error', 'No customers with a phone number match these filters.');
+        $broadcast = SmsBroadcast::create($this->broadcastAttributes($data) + ['created_by' => auth()->id()]);
+
+        return $this->applyAction($request, $broadcast, $data);
+    }
+
+    public function update(Request $request, SmsBroadcast $sms_broadcast)
+    {
+        if (!$sms_broadcast->isEditable()) {
+            return redirect()->route('sms_broadcasts.show', $sms_broadcast)
+                ->with('error', 'This broadcast has already been sent and cannot be edited.');
         }
 
-        // Render each personalized message up-front so the credit check is exact.
-        $messages = $recipients->map(fn($c) => [
-            'phone'   => $c->phone,
-            'body'    => $this->personalize($data['message'], $c),
-        ]);
-        $creditsNeeded = $messages->sum(fn($m) => SmsBundle::creditsFor($m['body']));
+        $data = $this->validateInput($request, requireMessage: true);
+        $sms_broadcast->update($this->broadcastAttributes($data));
 
-        // Quota gate: with an active bundle, the whole broadcast must fit.
-        // With an SMS subscription but no active bundle, every send would be
-        // blocked anyway — fail fast with a useful message.
-        $bundle = SmsBundle::findActive();
-        if ($bundle) {
-            if ($bundle->remaining < $creditsNeeded) {
-                return back()->withInput()->with('error',
-                    "Not enough SMS credits: this broadcast needs {$creditsNeeded} but only {$bundle->remaining} remain. Top up your bundle or narrow the audience.");
-            }
-        } else {
-            $hasSmsSubscription = PlatformSubscription::query()
-                ->whereHas('service', fn($q) => $q->where('type', 'SMS'))
-                ->whereIn('status', ['Active', 'Paused', 'Suspended'])
-                ->exists();
-            if ($hasSmsSubscription) {
-                return back()->withInput()->with('error', 'No active SMS bundle — pay your SMS invoice to restore sending.');
-            }
+        return $this->applyAction($request, $sms_broadcast, $data);
+    }
+
+    public function destroy(SmsBroadcast $sms_broadcast)
+    {
+        if (!$sms_broadcast->isEditable()) {
+            return back()->with('error', 'Only draft, scheduled or failed broadcasts can be deleted.');
         }
 
-        $broadcast = SmsBroadcast::create([
-            'message'           => $data['message'],
-            'filters'           => $this->describeFilters($data),
-            'recipients_count'  => $recipients->count(),
-            'credits_estimated' => $creditsNeeded,
-            'status'            => 'Processing',
-            'created_by'        => auth()->id(),
-        ]);
+        AuditService::log('Deleted SMS Broadcast', "#{$sms_broadcast->id} ({$sms_broadcast->status})");
+        $sms_broadcast->delete();
 
-        foreach ($messages as $m) {
-            SendSmsJob::dispatch($m['phone'], $m['body'], SendSmsJob::PROFILE_CUSTOMER, $broadcast->id);
+        return redirect()->route('sms_broadcasts.index')->with('success', 'Broadcast deleted.');
+    }
+
+    /** Fire a Draft/Scheduled/Failed broadcast immediately. */
+    public function sendNow(SmsBroadcast $sms_broadcast)
+    {
+        if (!$sms_broadcast->isEditable()) {
+            return back()->with('error', 'This broadcast is already sending or sent.');
         }
 
-        AuditService::log('Sent SMS Broadcast', "#{$broadcast->id} to {$recipients->count()} customer(s), ~{$creditsNeeded} credit(s)");
+        $error = $this->broadcasts->launch($sms_broadcast);
+        if ($error) {
+            return redirect()->route('sms_broadcasts.show', $sms_broadcast)->with('error', $error);
+        }
 
-        return redirect()->route('sms_broadcasts.show', $broadcast)
-            ->with('success', "Broadcast queued for {$recipients->count()} customer(s).");
+        return redirect()->route('sms_broadcasts.show', $sms_broadcast)
+            ->with('success', "Broadcast queued for {$sms_broadcast->recipients_count} customer(s).");
     }
 
     public function show(SmsBroadcast $sms_broadcast)
@@ -117,7 +116,39 @@ class SmsBroadcastController extends Controller
 
     // ─────────────────────────────────────────────────────────────────────────
 
-    protected function validateFilters(Request $request, bool $requireMessage): array
+    /** Handle the chosen submit action (send | draft | schedule) for a saved broadcast. */
+    protected function applyAction(Request $request, SmsBroadcast $broadcast, array $data)
+    {
+        $action = $request->input('action', 'send');
+
+        if ($action === 'draft') {
+            $broadcast->update(['status' => 'Draft', 'scheduled_at' => null, 'failure_reason' => null]);
+            AuditService::log('Saved SMS Broadcast Draft', "#{$broadcast->id}");
+            return redirect()->route('sms_broadcasts.show', $broadcast)->with('success', 'Draft saved. Send or schedule it when ready.');
+        }
+
+        if ($action === 'schedule') {
+            $broadcast->update([
+                'status'         => 'Scheduled',
+                'scheduled_at'   => $data['scheduled_at'],
+                'failure_reason' => null,
+            ]);
+            AuditService::log('Scheduled SMS Broadcast', "#{$broadcast->id} for {$broadcast->scheduled_at->format('Y-m-d H:i')}");
+            return redirect()->route('sms_broadcasts.show', $broadcast)
+                ->with('success', 'Broadcast scheduled for ' . $broadcast->scheduled_at->format('M d, Y H:i') . '.');
+        }
+
+        // Send now
+        $error = $this->broadcasts->launch($broadcast);
+        if ($error) {
+            return redirect()->route('sms_broadcasts.show', $broadcast)->with('error', $error);
+        }
+
+        return redirect()->route('sms_broadcasts.show', $broadcast)
+            ->with('success', "Broadcast queued for {$broadcast->recipients_count} customer(s).");
+    }
+
+    protected function validateInput(Request $request, bool $requireMessage): array
     {
         return $request->validate([
             'message'          => ($requireMessage ? 'required' : 'nullable') . '|string|max:640',
@@ -130,51 +161,31 @@ class SmsBroadcastController extends Controller
             'types.*'          => 'in:Residential,Commercial',
             'debtors_only'     => 'nullable|boolean',
             'include_inactive' => 'nullable|boolean',
+            'action'           => 'nullable|in:send,draft,schedule',
+            'scheduled_at'     => 'required_if:action,schedule|nullable|date|after:now',
+        ], [
+            'scheduled_at.required_if' => 'Pick a date and time for the scheduled delivery.',
+            'scheduled_at.after'       => 'The scheduled time must be in the future.',
         ]);
     }
 
-    /**
-     * Resolve the audience to customers that have a phone number, deduplicated
-     * by phone. Each customer carries an `outstanding` sum for {balance}.
-     */
-    protected function resolveRecipients(array $f)
+    /** Message + filter-snapshot attributes shared by store() and update(). */
+    protected function broadcastAttributes(array $data): array
     {
-        $query = Customer::query()
-            ->withSum(['invoices as outstanding' => fn($q) => $q->whereNotIn('status', ['Paid', 'Cancelled'])], 'balance_due')
-            ->whereNotNull('phone')
-            ->where('phone', '!=', '');
-
-        if (empty($f['include_inactive'])) {
-            $query->where('is_active', true);
-        }
-
-        if (($f['audience'] ?? 'all') === 'zones') {
-            $query->whereIn('zone_id', $f['zone_ids'] ?? []);
-        } elseif (($f['audience'] ?? 'all') === 'customers') {
-            $query->whereIn('id', $f['customer_ids'] ?? []);
-        }
-
-        if (!empty($f['types'])) {
-            $query->whereIn('type', $f['types']);
-        }
-
-        $customers = $query->orderBy('name')->get();
-
-        if (!empty($f['debtors_only'])) {
-            $customers = $customers->filter(fn($c) => (float) ($c->outstanding ?? 0) > 0);
-        }
-
-        return $customers->unique(fn($c) => preg_replace('/\s+/', '', $c->phone))->values();
+        return [
+            'message' => $data['message'],
+            'filters' => $this->describeFilters($data),
+            'status'  => 'Draft', // applyAction() promotes to Scheduled/Processing
+        ];
     }
 
-    /** Replace {name} and {balance} placeholders with the customer's values. */
-    protected function personalize(string $message, Customer $customer): string
+    protected function formData(): array
     {
-        return str_replace(
-            ['{name}', '{balance}'],
-            [$customer->name, 'GHS ' . number_format((float) ($customer->outstanding ?? 0), 2)],
-            $message
-        );
+        return [
+            'zones'     => Zone::where('is_active', true)->orderBy('name')->get(),
+            'customers' => Customer::where('is_active', true)->orderBy('name')->get(['id', 'name', 'phone']),
+            'bundle'    => SmsBundle::findActive(),
+        ];
     }
 
     /** Snapshot of the filters (with zone names) stored on the broadcast for display. */

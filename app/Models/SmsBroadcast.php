@@ -19,6 +19,8 @@ class SmsBroadcast extends Model
         'credits_used',
         'credits_estimated',
         'status',
+        'scheduled_at',
+        'failure_reason',
         'created_by',
     ];
 
@@ -30,7 +32,21 @@ class SmsBroadcast extends Model
         'skipped_count'     => 'integer',
         'credits_used'      => 'integer',
         'credits_estimated' => 'integer',
+        'scheduled_at'      => 'datetime',
     ];
+
+    /** Statuses: Draft | Scheduled | Processing | Completed | Failed */
+    public function isEditable(): bool
+    {
+        return in_array($this->status, ['Draft', 'Scheduled', 'Failed'], true);
+    }
+
+    public function scopeDueForDispatch($query)
+    {
+        return $query->where('status', 'Scheduled')
+                     ->whereNotNull('scheduled_at')
+                     ->where('scheduled_at', '<=', now());
+    }
 
     public function creator()
     {

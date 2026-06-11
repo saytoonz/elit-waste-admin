@@ -79,6 +79,10 @@ Route::middleware(['auth', 'platform.block'])->group(function () {
         Route::post('/estimate', [\App\Http\Controllers\SmsBroadcastController::class, 'estimate'])->name('estimate');
         Route::post('/', [\App\Http\Controllers\SmsBroadcastController::class, 'store'])->name('store');
         Route::get('/{sms_broadcast}', [\App\Http\Controllers\SmsBroadcastController::class, 'show'])->name('show');
+        Route::get('/{sms_broadcast}/edit', [\App\Http\Controllers\SmsBroadcastController::class, 'edit'])->name('edit');
+        Route::put('/{sms_broadcast}', [\App\Http\Controllers\SmsBroadcastController::class, 'update'])->name('update');
+        Route::delete('/{sms_broadcast}', [\App\Http\Controllers\SmsBroadcastController::class, 'destroy'])->name('destroy');
+        Route::post('/{sms_broadcast}/send-now', [\App\Http\Controllers\SmsBroadcastController::class, 'sendNow'])->name('sendNow');
     });
 
     // Settings

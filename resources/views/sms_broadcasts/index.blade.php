@@ -47,10 +47,22 @@
                                 </td>
                                 <td class="px-4 py-3 text-right">{{ number_format($b->credits_used) }}</td>
                                 <td class="px-4 py-3">
-                                    <span class="inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ring-1 ring-inset
-                                        {{ $b->status === 'Completed' ? 'bg-green-50 text-green-700 ring-green-600/20' : 'bg-blue-50 text-blue-700 ring-blue-600/20' }}">
+                                    @php
+                                        $badge = match ($b->status) {
+                                            'Completed'  => 'bg-green-50 text-green-700 ring-green-600/20',
+                                            'Processing' => 'bg-blue-50 text-blue-700 ring-blue-600/20',
+                                            'Scheduled'  => 'bg-indigo-50 text-indigo-700 ring-indigo-600/20',
+                                            'Draft'      => 'bg-gray-50 text-gray-700 ring-gray-600/20',
+                                            'Failed'     => 'bg-red-50 text-red-700 ring-red-600/20',
+                                            default      => 'bg-gray-50 text-gray-700 ring-gray-600/20',
+                                        };
+                                    @endphp
+                                    <span class="inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ring-1 ring-inset {{ $badge }}">
                                         {{ $b->status }}{{ $b->status === 'Processing' ? " ({$b->progress_percent}%)" : '' }}
                                     </span>
+                                    @if($b->status === 'Scheduled' && $b->scheduled_at)
+                                        <div class="text-xs text-gray-500 mt-0.5">⏱ {{ $b->scheduled_at->format('M d, H:i') }}</div>
+                                    @endif
                                 </td>
                             </tr>
                         @endforeach
