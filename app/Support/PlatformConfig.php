@@ -18,6 +18,9 @@ class PlatformConfig
     public const KEY_PAYMENTS_ENABLED      = 'platform_payments_enabled';
     public const KEY_MAINTENANCE_MESSAGE   = 'platform_maintenance_message';
     public const KEY_PAYSTACK_FEE_PERCENT  = 'platform_paystack_fee_percent';
+    public const KEY_REMINDERS_ENABLED     = 'platform_reminders_enabled';
+    public const KEY_REMINDER_PHONE        = 'platform_reminder_phone';
+    public const KEY_REMINDER_LAST_SENT    = 'platform_reminder_last_sent';
 
     /**
      * Whether the customer can initiate platform payments right now.
@@ -63,6 +66,47 @@ class PlatformConfig
     public static function setPaystackFeePercent(float $percent): void
     {
         self::upsert(self::KEY_PAYSTACK_FEE_PERCENT, (string) max(0.0, min(15.0, $percent)));
+    }
+
+    /**
+     * Whether daily billing reminders (unpaid invoices, renewals, grace, SMS expiry)
+     * are sent to the admin phone. Default-on.
+     */
+    public static function remindersEnabled(): bool
+    {
+        $raw = Setting::safeValue(self::KEY_REMINDERS_ENABLED);
+        if ($raw === null) return true; // default-on
+        return in_array(strtolower((string) $raw), ['1', 'true', 'yes', 'on'], true);
+    }
+
+    public static function setRemindersEnabled(bool $enabled): void
+    {
+        self::upsert(self::KEY_REMINDERS_ENABLED, $enabled ? '1' : '0');
+    }
+
+    /** Explicit reminder destination override; null falls back to the company phone. */
+    public static function reminderPhone(): ?string
+    {
+        $v = Setting::safeValue(self::KEY_REMINDER_PHONE);
+        $v = is_string($v) ? trim($v) : '';
+        return $v !== '' ? $v : null;
+    }
+
+    public static function setReminderPhone(?string $phone): void
+    {
+        self::upsert(self::KEY_REMINDER_PHONE, (string) ($phone ?? ''));
+    }
+
+    /** Date (Y-m-d) the last daily reminder was sent — guards against duplicate sends. */
+    public static function reminderLastSent(): ?string
+    {
+        $v = Setting::safeValue(self::KEY_REMINDER_LAST_SENT);
+        return is_string($v) && trim($v) !== '' ? trim($v) : null;
+    }
+
+    public static function setReminderLastSent(string $date): void
+    {
+        self::upsert(self::KEY_REMINDER_LAST_SENT, $date);
     }
 
     /**

@@ -53,6 +53,32 @@
                     </p>
                     @error('paystack_fee_percent')<p class="text-xs text-red-600 mt-1">{{ $message }}</p>@enderror
                 </div>
+
+                <div class="border-t border-gray-100 pt-5 space-y-4">
+                    <div class="flex items-start gap-3">
+                        <input type="hidden" name="reminders_enabled" value="0">
+                        <input type="checkbox" name="reminders_enabled" id="reminders_enabled" value="1" @checked($remindersEnabled)
+                            class="mt-1 h-5 w-5 rounded border-gray-300 text-primary focus:ring-primary">
+                        <div>
+                            <label for="reminders_enabled" class="text-sm font-medium text-gray-900">Send daily billing reminders by SMS</label>
+                            <p class="text-xs text-gray-500 mt-0.5">Once a day, the admin gets one SMS summarising unpaid invoices, upcoming renewals, grace-period warnings and SMS bundle expiry. <strong>Each reminder uses the customer's SMS credits.</strong></p>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label for="reminder_phone" class="block text-sm font-medium text-gray-900">Reminder Phone (optional)</label>
+                        <input type="text" name="reminder_phone" id="reminder_phone" value="{{ old('reminder_phone', $reminderPhone) }}"
+                               placeholder="{{ $companyPhone !== '' ? $companyPhone . ' (company phone)' : 'e.g. 0245928696' }}"
+                               class="mt-2 block w-full sm:w-72 rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-primary sm:text-sm">
+                        <p class="text-xs text-gray-500 mt-1">
+                            Leave blank to use the company phone from Settings.
+                            @if($companyPhone === '')
+                                <span class="text-amber-700">No company phone is set, so reminders won't send until one is added.</span>
+                            @endif
+                        </p>
+                        @error('reminder_phone')<p class="text-xs text-red-600 mt-1">{{ $message }}</p>@enderror
+                    </div>
+                </div>
             </div>
 
             <div class="flex items-center justify-end gap-x-4 border-t border-gray-900/10 px-6 py-4">

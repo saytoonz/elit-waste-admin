@@ -11,4 +11,5 @@ Artisan::command('inspire', function () {
 Schedule::command('billing:run')->daily();
 Schedule::command('expenses:run')->dailyAt('01:30');
 Schedule::command('platform:bill')->dailyAt('02:00');
+Schedule::command('platform:remind')->dailyAt('08:00');
 Schedule::command('sms:dispatch-scheduled')->everyMinute();

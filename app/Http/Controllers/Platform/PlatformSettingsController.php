@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Platform;
 
 use App\Http\Controllers\Controller;
+use App\Models\Setting;
 use App\Services\AuditService;
 use App\Support\PlatformConfig;
 use Illuminate\Http\Request;
@@ -15,6 +16,9 @@ class PlatformSettingsController extends Controller
             'paymentsEnabled'       => PlatformConfig::paymentsEnabled(),
             'maintenanceMessage'    => PlatformConfig::maintenanceMessage(),
             'paystackFeePercent'    => PlatformConfig::paystackFeePercent(),
+            'remindersEnabled'      => PlatformConfig::remindersEnabled(),
+            'reminderPhone'         => PlatformConfig::reminderPhone(),
+            'companyPhone'          => (string) Setting::safeValue('company_phone', ''),
             'providerChargeCurrency'=> config('platform.provider_charge_currency'),
             'usdToGhsRate'          => config('platform.usd_to_ghs_rate'),
             'emailDomain'           => config('platform.email_domain'),
@@ -27,6 +31,8 @@ class PlatformSettingsController extends Controller
             'payments_enabled'      => 'sometimes|boolean',
             'maintenance_message'   => 'nullable|string|max:500',
             'paystack_fee_percent'  => 'required|numeric|min:0|max:15',
+            'reminders_enabled'     => 'sometimes|boolean',
+            'reminder_phone'        => 'nullable|string|max:20',
         ]);
 
         $wasEnabled = PlatformConfig::paymentsEnabled();
@@ -37,6 +43,8 @@ class PlatformSettingsController extends Controller
         PlatformConfig::setPaymentsEnabled($nowEnabled);
         PlatformConfig::setMaintenanceMessage($data['maintenance_message'] ?? null);
         PlatformConfig::setPaystackFeePercent($newFee);
+        PlatformConfig::setRemindersEnabled((bool) $request->boolean('reminders_enabled'));
+        PlatformConfig::setReminderPhone($data['reminder_phone'] ?? null);
 
         if ($wasEnabled !== $nowEnabled) {
             AuditService::log(
