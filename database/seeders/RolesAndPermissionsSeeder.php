@@ -37,6 +37,10 @@ class RolesAndPermissionsSeeder extends Seeder
             'vendor.manage',
             'budget.manage',
             'platform.manage',
+            'weight.create', // Refuse-site weighing records
+            'weight.view',
+            'weight.edit',
+            'weight.delete',
             'report.view',
             'view audit logs',
             'manage users',
@@ -55,7 +59,9 @@ class RolesAndPermissionsSeeder extends Seeder
             'customer.create',
             'customer.view',
             'payment.create',
-            'invoice.view'
+            'invoice.view',
+            'weight.create', // Record weighings at the refuse site
+            'weight.view'
         ]);
 
         // 2. Supervisor (View + manage customers, limited finance, view expenses)
@@ -69,6 +75,9 @@ class RolesAndPermissionsSeeder extends Seeder
             'expense.create',
             'expense.view',
             'vendor.manage',
+            'weight.create', // Supervise site weighings
+            'weight.view',
+            'weight.edit',
             'report.view'
         ]);
 
@@ -89,6 +98,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'expense.approve',
             'vendor.manage',
             'budget.manage',
+            'weight.view', // View weight analytics/reporting
             'report.view'
         ]);
 

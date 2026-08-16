@@ -8,7 +8,9 @@ Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
 
-Schedule::command('billing:run')->daily();
+// withoutOverlapping() prevents a slow/overlapping run from double-billing.
+// Add ->onOneServer() as well if this app is ever deployed across multiple servers.
+Schedule::command('billing:run')->daily()->withoutOverlapping();
 Schedule::command('expenses:run')->dailyAt('01:30');
 Schedule::command('platform:bill')->dailyAt('02:00');
 Schedule::command('platform:remind')->dailyAt('08:00');

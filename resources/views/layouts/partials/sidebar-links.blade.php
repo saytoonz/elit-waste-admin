@@ -33,6 +33,17 @@
     </a>
 </li>
 
+@can('weight.view')
+<li>
+    <a href="{{ route('weight-logs.index') }}" class="{{ request()->routeIs('weight-logs.*') ? 'bg-secondary text-white' : 'text-indigo-200 hover:text-white hover:bg-secondary' }} group flex gap-x-3 rounded-md p-2 text-sm font-semibold leading-6">
+        <svg class="h-6 w-6 shrink-0 {{ request()->routeIs('weight-logs.*') ? 'text-white' : 'text-indigo-200 group-hover:text-white' }}" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v2.25m0 0a2.25 2.25 0 00-2.25 2.25M12 5.25a2.25 2.25 0 012.25 2.25M6.75 7.5h10.5M6.75 7.5L3.75 16.5a3.75 3.75 0 007.5 0L8.25 7.5m9 0l-3 9a3.75 3.75 0 007.5 0l-3-9M12 18.75V21m-3 0h6" />
+        </svg>
+        Weighing
+    </a>
+</li>
+@endcan
+
 @role('Owner|Admin')
 <li>
     <a href="{{ route('sms_broadcasts.index') }}" class="{{ request()->routeIs('sms_broadcasts.*') ? 'bg-secondary text-white' : 'text-indigo-200 hover:text-white hover:bg-secondary' }} group flex gap-x-3 rounded-md p-2 text-sm font-semibold leading-6">

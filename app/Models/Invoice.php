@@ -11,6 +11,8 @@ class Invoice extends Model
 
     protected $fillable = [
         'customer_id',
+        'subscription_id',
+        'billing_period',
         'invoice_number',
         'amount',
         'balance_due',
@@ -26,6 +28,11 @@ class Invoice extends Model
     public function customer()
     {
         return $this->belongsTo(Customer::class);
+    }
+
+    public function subscription()
+    {
+        return $this->belongsTo(Subscription::class);
     }
 
     public function payments()

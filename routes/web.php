@@ -65,7 +65,30 @@ Route::middleware(['auth', 'platform.block'])->group(function () {
     Route::resource('customers', \App\Http\Controllers\CustomerController::class);
     Route::resource('subscriptions', \App\Http\Controllers\SubscriptionController::class)->only(['store', 'update', 'destroy']);
     Route::resource('invoices', \App\Http\Controllers\InvoiceController::class);
-    
+
+    // Weighing / disposal records (refuse-site weight logging + analytics)
+    // Per-action permission gating: weight.view (read) / weight.create / weight.edit / weight.delete.
+    Route::prefix('weight-logs')->name('weight-logs.')->group(function () {
+        // Read — list + analytics (available to anyone with weight.view, incl. Accountant)
+        Route::get('/', [\App\Http\Controllers\WeightLogController::class, 'index'])
+            ->name('index')->middleware('permission:weight.view');
+        Route::get('/analytics', [\App\Http\Controllers\WeightLogController::class, 'analytics'])
+            ->name('analytics')->middleware('permission:weight.view');
+        // Create
+        Route::get('/create', [\App\Http\Controllers\WeightLogController::class, 'create'])
+            ->name('create')->middleware('permission:weight.create');
+        Route::post('/', [\App\Http\Controllers\WeightLogController::class, 'store'])
+            ->name('store')->middleware('permission:weight.create');
+        // Update
+        Route::get('/{weightLog}/edit', [\App\Http\Controllers\WeightLogController::class, 'edit'])
+            ->name('edit')->middleware('permission:weight.edit');
+        Route::put('/{weightLog}', [\App\Http\Controllers\WeightLogController::class, 'update'])
+            ->name('update')->middleware('permission:weight.edit');
+        // Delete
+        Route::delete('/{weightLog}', [\App\Http\Controllers\WeightLogController::class, 'destroy'])
+            ->name('destroy')->middleware('permission:weight.delete');
+    });
+
     // Payments
     Route::get('payments/initiate/{invoice}', [\App\Http\Controllers\PaymentController::class, 'initiate'])->name('payments.initiate');
     Route::get('payments/callback', [\App\Http\Controllers\PaymentController::class, 'callback'])->name('payments.callback');
