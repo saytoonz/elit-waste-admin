@@ -80,12 +80,13 @@ class RunBillingCycle extends Command
                     if ($alreadyBilled) {
                         $skipped++;
                     } else {
-                        $this->generateInvoice($subscription, $period, $today);
+                        $this->generateInvoice($subscription, $period, $billingDate);
                         $billed++;
                     }
 
-                    // Realign to the next future date regardless — no daily cascade.
-                    $subscription->next_billing_date = $subscription->nextDateAfter($billingDate, $today);
+                    // Advance to the next canonical date (28th / Saturday) strictly
+                    // after today — realigns behind subs in one step, no daily cascade.
+                    $subscription->next_billing_date = $subscription->nextBillingDateAfter($today);
                     $subscription->save();
                 });
             } catch (\Throwable $e) {
@@ -103,9 +104,11 @@ class RunBillingCycle extends Command
         return self::SUCCESS;
     }
 
-    protected function generateInvoice(Subscription $subscription, string $period, Carbon $today): void
+    protected function generateInvoice(Subscription $subscription, string $period, Carbon $billingDate): void
     {
-        $dueDate = $today->copy()->addDays((int) $subscription->due_date_offset_days);
+        // Due date is measured from the billing anchor (the 28th / Saturday), not
+        // from "today", so a late scheduler run still yields the 30th / Monday.
+        $dueDate = $billingDate->copy()->addDays((int) $subscription->due_date_offset_days);
         $invoiceNumber = 'INV-' . strtoupper(Str::random(8));
 
         $invoice = Invoice::create([

@@ -59,34 +59,63 @@ class Subscription extends Model
     }
 
     /**
-     * Advance a billing date by exactly one cycle, preserving the anchor day
-     * without month overflow (e.g. Jan 31 -> Feb 28, not Mar 03).
+     * The canonical billing anchor day: Monthly (and Quarterly/Yearly) are billed
+     * on the 28th — chosen because the 28th exists in EVERY month including
+     * February, in both leap and non-leap years. Weekly is billed on Saturday.
+     *
+     * Returns the first canonical billing date ON OR AFTER $date. Used when a
+     * subscription is created or realigned so its schedule snaps onto the anchor.
      */
-    public function addCycle(Carbon $date): Carbon
+    public function anchorOnOrAfter($date): Carbon
     {
-        return match ($this->billing_cycle) {
-            'Weekly'    => $date->copy()->addWeek(),
-            'Quarterly' => $date->copy()->addQuarterNoOverflow(),
-            default     => $date->copy()->addMonthNoOverflow(),
-        };
+        $date = ($date instanceof Carbon ? $date->copy() : Carbon::parse($date))->startOfDay();
+
+        if ($this->billing_cycle === 'Weekly') {
+            return $date->isSaturday() ? $date->copy() : $date->copy()->next(Carbon::SATURDAY);
+        }
+
+        // Monthly / Quarterly / Yearly anchor on the 28th.
+        $anchor = $date->copy()->day(28);
+
+        return $anchor->gte($date)
+            ? $anchor
+            : $date->copy()->addMonthNoOverflow()->day(28);
     }
 
     /**
-     * Next billing date strictly AFTER $pivot (default: today), stepping one
-     * cycle at a time from $from. This prevents the "bill once per day until
-     * caught up" cascade: a behind subscription is realigned to the future in
-     * a single run.
+     * The next canonical billing date STRICTLY AFTER $pivot (default: today).
+     * Used to advance the schedule after billing — it re-anchors to the 28th /
+     * Saturday every time, so a subscription can never drift off the standard
+     * schedule and a behind subscription is realigned to the future in one step
+     * (no "bill once per day until caught up" cascade).
      */
-    public function nextDateAfter($from, $pivot = null): Carbon
+    public function nextBillingDateAfter($pivot = null): Carbon
     {
-        $next  = $from instanceof Carbon ? $from->copy() : Carbon::parse($from);
-        $pivot = $pivot ? ($pivot instanceof Carbon ? $pivot : Carbon::parse($pivot)) : Carbon::today();
+        $pivot = $pivot === null
+            ? Carbon::today()
+            : ($pivot instanceof Carbon ? $pivot->copy() : Carbon::parse($pivot));
+        $pivot = $pivot->startOfDay();
 
-        // Guard against an infinite loop on bad data.
-        for ($i = 0; $i < 1000 && $next->lte($pivot); $i++) {
-            $next = $this->addCycle($next);
+        if ($this->billing_cycle === 'Weekly') {
+            return $pivot->copy()->next(Carbon::SATURDAY);
         }
 
-        return $next;
+        // Monthly / Quarterly / Yearly: step whole cycles on the 28th until
+        // strictly after the pivot. The phase (which month) is preserved from
+        // the current next_billing_date; the day is always re-anchored to 28.
+        $step = match ($this->billing_cycle) {
+            'Quarterly' => 3,
+            'Yearly'    => 12,
+            default     => 1, // Monthly (and any legacy value)
+        };
+
+        $date = ($this->next_billing_date ? Carbon::parse($this->next_billing_date) : $pivot)
+            ->copy()->day(28);
+
+        for ($i = 0; $i < 1200 && $date->lte($pivot); $i++) {
+            $date = $date->addMonthsNoOverflow($step)->day(28);
+        }
+
+        return $date;
     }
 }

@@ -73,21 +73,19 @@ class CustomerController extends Controller
         if ($request->filled('service_plan_id')) {
             $plan = \App\Models\ServicePlan::find($request->service_plan_id);
             if ($plan) {
+                // First billing date snaps onto the standard schedule (Monthly=28th, Weekly=Saturday).
+                $anchor = (new \App\Models\Subscription(['billing_cycle' => $plan->billing_cycle]))
+                    ->anchorOnOrAfter(now());
+
                 $customer->subscription()->create([
                     'service_plan_id' => $plan->id,
                     'billing_cycle' => $plan->billing_cycle,
                     'amount' => $plan->amount,
                     'status' => 'Active',
                     'start_date' => now(),
-                    'next_billing_date' => now()->addMonth(), // Default to 1 month, adjust logic later based on cycle
+                    'due_date_offset_days' => 2,
+                    'next_billing_date' => $anchor->toDateString(),
                 ]);
-                
-                // Adjust next billing date
-                $sub = $customer->subscription;
-                if ($plan->billing_cycle == 'Weekly') $sub->next_billing_date = now()->addWeek();
-                if ($plan->billing_cycle == 'Quarterly') $sub->next_billing_date = now()->addMonths(3);
-                if ($plan->billing_cycle == 'Yearly') $sub->next_billing_date = now()->addYear();
-                $sub->save();
             }
         }
 

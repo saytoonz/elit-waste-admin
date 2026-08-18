@@ -22,9 +22,10 @@ class SubscriptionController extends Controller
             'due_date_offset_days' => 'required|integer|min:0',
         ]);
 
-        // Determine next billing date (initially start date or next cycle?)
-        // Usually start date is the first billing date.
-        $validated['next_billing_date'] = $validated['start_date'];
+        // First billing date snaps onto the standard schedule (Monthly=28th, Weekly=Saturday).
+        $anchor = (new Subscription(['billing_cycle' => $validated['billing_cycle']]))
+            ->anchorOnOrAfter($validated['start_date']);
+        $validated['next_billing_date'] = $anchor->toDateString();
         $validated['status'] = 'Active';
 
         Subscription::create($validated);
