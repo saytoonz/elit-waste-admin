@@ -126,10 +126,30 @@ class PlatformSubscription extends Model
         return Carbon::parse($this->next_billing_date)->isPast();
     }
 
+    /**
+     * Oldest unpaid cycle invoice for this subscription. Prepay/Manual invoices are
+     * optional purchases, so leaving them unpaid never counts against the grace period.
+     */
+    public function oldestUnpaidCycleInvoice(): ?PlatformInvoice
+    {
+        return PlatformInvoice::whereHas('items', fn($q) => $q->where('platform_subscription_id', $this->id))
+            ->where('kind', 'Cycle')
+            ->whereIn('status', ['Pending', 'Overdue', 'Partial'])
+            ->orderBy('period_start')
+            ->first();
+    }
+
+    /**
+     * Grace is measured from the start of the oldest unpaid billed period — NOT from
+     * next_billing_date, which billing advances to the following cycle as soon as the
+     * invoice is generated (so it is always in the future and grace never expired).
+     */
     public function isPastGrace(): bool
     {
-        if (!$this->isOverdue()) return false;
-        $cutoff = Carbon::parse($this->next_billing_date)->addDays($this->grace_days);
+        $invoice = $this->oldestUnpaidCycleInvoice();
+        if (!$invoice) return false;
+        $start = $invoice->period_start ?? $invoice->issued_at;
+        $cutoff = Carbon::parse($start)->addDays($this->grace_days);
         return Carbon::today()->greaterThan($cutoff);
     }
 
@@ -137,10 +157,7 @@ class PlatformSubscription extends Model
     {
         if (!$this->force_payment) return false;
         if ($this->status === 'Cancelled') return false;
-        // Block if past grace AND there is an unpaid invoice
-        if (!$this->isPastGrace()) return false;
-        return PlatformInvoice::whereHas('items', fn($q) => $q->where('platform_subscription_id', $this->id))
-            ->whereIn('status', ['Pending', 'Overdue', 'Partial'])
-            ->exists();
+        // Past grace already implies an unpaid cycle invoice exists
+        return $this->isPastGrace();
     }
 }
