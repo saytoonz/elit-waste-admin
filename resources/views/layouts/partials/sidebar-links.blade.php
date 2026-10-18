@@ -1,3 +1,4 @@
+@unless($platformBlocked ?? false)
 <li>
     <a href="{{ route('dashboard') }}" class="{{ request()->routeIs('dashboard') ? 'bg-secondary text-white' : 'text-indigo-200 hover:text-white hover:bg-secondary' }} group flex gap-x-3 rounded-md p-2 text-sm font-semibold leading-6">
         <svg class="h-6 w-6 shrink-0 {{ request()->routeIs('dashboard') ? 'text-white' : 'text-indigo-200 group-hover:text-white' }}" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
@@ -101,6 +102,8 @@
     </a>
 </li>
 @endcan
+
+@endunless
 
 <!-- Customer billing portal — visible to everyone -->
 <li class="pt-4 mt-2 border-t border-indigo-700/40">

@@ -81,7 +81,7 @@
                             @include('layouts.partials.sidebar-links')
                         </ul>
                     </li>
-                    @hasrole('Owner|Admin')
+                    @if(!($platformBlocked ?? false) && auth()->user()?->hasRole(['Owner', 'Admin']))
                     <li class="mt-auto">
                         <a href="{{ route('settings.index') }}" class="{{ request()->routeIs('settings.*') ? 'bg-secondary text-white' : 'text-indigo-200 hover:text-white hover:bg-secondary' }} group -mx-2 flex gap-x-3 rounded-md p-2 text-sm font-semibold leading-6">
                             <svg class="h-6 w-6 shrink-0 {{ request()->routeIs('settings.*') ? 'text-white' : 'text-indigo-200 group-hover:text-white' }}" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
@@ -91,7 +91,7 @@
                             Settings
                         </a>
                     </li>
-                    @endhasrole
+                    @endif
                 </ul>
             </nav>
         </div>

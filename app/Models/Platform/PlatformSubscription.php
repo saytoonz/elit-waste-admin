@@ -149,8 +149,10 @@ class PlatformSubscription extends Model
         $invoice = $this->oldestUnpaidCycleInvoice();
         if (!$invoice) return false;
         $start = $invoice->period_start ?? $invoice->issued_at;
+        // grace_days = number of days the customer may still use the system after the
+        // period starts unpaid; 0 means blocked from the first day of the unpaid period.
         $cutoff = Carbon::parse($start)->addDays($this->grace_days);
-        return Carbon::today()->greaterThan($cutoff);
+        return Carbon::today()->greaterThanOrEqualTo($cutoff);
     }
 
     public function shouldBlockAccess(): bool

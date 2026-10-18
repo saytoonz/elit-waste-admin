@@ -34,6 +34,9 @@ class EnforcePlatformPaymentBlock
             return $next($request);
         }
 
+        // Lets the layout hide everything except billing while access is blocked
+        view()->share('platformBlocked', true);
+
         // Allowed routes during block
         $allowed = [
             'my.invoices.*',
