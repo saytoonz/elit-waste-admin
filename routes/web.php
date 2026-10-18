@@ -3,14 +3,6 @@
 use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', function () {
-    return view('welcome');
-});
-
-Route::get('/', function () {
-    return redirect()->route('login');
-});
-
 Route::get('/dashboard', [\App\Http\Controllers\DashboardController::class, 'index'])
     ->middleware(['auth', 'verified'])
     ->name('dashboard');
@@ -59,6 +51,50 @@ Route::middleware(['auth', 'platform.block'])->group(function () {
         Route::post('settings', [\App\Http\Controllers\Platform\PlatformSettingsController::class, 'update'])->name('settings.update');
     });
     
+    // Public website CMS + leads CRM
+    Route::prefix('website')->name('website.')->middleware('role:Owner|Admin|SuperAdmin')->group(function () {
+        Route::resource('pages', \App\Http\Controllers\Website\PageController::class)->except(['show']);
+        Route::post('pages/{page}/duplicate', [\App\Http\Controllers\Website\PageController::class, 'duplicate'])->name('pages.duplicate');
+        Route::post('pages/{page}/home', [\App\Http\Controllers\Website\PageController::class, 'makeHome'])->name('pages.home');
+
+        Route::post('pages/{page}/sections', [\App\Http\Controllers\Website\SectionController::class, 'store'])->name('sections.store');
+        Route::get('sections/{section}/edit', [\App\Http\Controllers\Website\SectionController::class, 'edit'])->name('sections.edit');
+        Route::put('sections/{section}', [\App\Http\Controllers\Website\SectionController::class, 'update'])->name('sections.update');
+        Route::delete('sections/{section}', [\App\Http\Controllers\Website\SectionController::class, 'destroy'])->name('sections.destroy');
+        Route::post('sections/{section}/toggle', [\App\Http\Controllers\Website\SectionController::class, 'toggle'])->name('sections.toggle');
+        Route::post('sections/{section}/duplicate', [\App\Http\Controllers\Website\SectionController::class, 'duplicate'])->name('sections.duplicate');
+        Route::post('sections/{section}/move', [\App\Http\Controllers\Website\SectionController::class, 'move'])->name('sections.move');
+
+        Route::resource('posts', \App\Http\Controllers\Website\PostController::class)->except(['show']);
+
+        Route::get('media', [\App\Http\Controllers\Website\MediaController::class, 'index'])->name('media.index');
+        Route::get('media/picker', [\App\Http\Controllers\Website\MediaController::class, 'picker'])->name('media.picker');
+        Route::post('media', [\App\Http\Controllers\Website\MediaController::class, 'store'])->name('media.store');
+        Route::patch('media/{media}', [\App\Http\Controllers\Website\MediaController::class, 'update'])->name('media.update');
+        Route::delete('media/{media}', [\App\Http\Controllers\Website\MediaController::class, 'destroy'])->name('media.destroy');
+
+        Route::get('menu', [\App\Http\Controllers\Website\MenuController::class, 'index'])->name('menu.index');
+        Route::post('menu', [\App\Http\Controllers\Website\MenuController::class, 'store'])->name('menu.store');
+        Route::put('menu/{item}', [\App\Http\Controllers\Website\MenuController::class, 'update'])->name('menu.update');
+        Route::delete('menu/{item}', [\App\Http\Controllers\Website\MenuController::class, 'destroy'])->name('menu.destroy');
+        Route::post('menu/{item}/move', [\App\Http\Controllers\Website\MenuController::class, 'move'])->name('menu.move');
+
+        Route::get('settings', [\App\Http\Controllers\Website\SettingController::class, 'show'])->name('settings.show');
+        Route::put('settings', [\App\Http\Controllers\Website\SettingController::class, 'update'])->name('settings.update');
+
+        Route::get('leads/export', [\App\Http\Controllers\Website\LeadController::class, 'export'])->name('leads.export');
+        Route::get('leads', [\App\Http\Controllers\Website\LeadController::class, 'index'])->name('leads.index');
+        Route::get('leads/{lead}', [\App\Http\Controllers\Website\LeadController::class, 'show'])->name('leads.show');
+        Route::patch('leads/{lead}', [\App\Http\Controllers\Website\LeadController::class, 'update'])->name('leads.update');
+        Route::post('leads/{lead}/activities', [\App\Http\Controllers\Website\LeadController::class, 'addActivity'])->name('leads.activities.store');
+        Route::post('leads/{lead}/convert', [\App\Http\Controllers\Website\LeadController::class, 'convert'])->name('leads.convert');
+        Route::delete('leads/{lead}', [\App\Http\Controllers\Website\LeadController::class, 'destroy'])->name('leads.destroy');
+
+        Route::get('subscribers/export', [\App\Http\Controllers\Website\SubscriberController::class, 'export'])->name('subscribers.export');
+        Route::get('subscribers', [\App\Http\Controllers\Website\SubscriberController::class, 'index'])->name('subscribers.index');
+        Route::delete('subscribers/{subscriber}', [\App\Http\Controllers\Website\SubscriberController::class, 'destroy'])->name('subscribers.destroy');
+    });
+
     Route::resource('users', \App\Http\Controllers\UserController::class)->middleware('permission:manage users');
     Route::resource('service_plans', \App\Http\Controllers\ServicePlanController::class);
     Route::resource('zones', \App\Http\Controllers\ZoneController::class);
@@ -172,3 +208,6 @@ Route::get('/pay/{invoice}', [\App\Http\Controllers\PublicPaymentController::cla
 Route::post('/pay/{invoice}', [\App\Http\Controllers\PublicPaymentController::class, 'process'])->name('public.pay.process');
 
 require __DIR__.'/auth.php';
+
+// Public website — must stay last (contains the catch-all page route)
+require __DIR__.'/site.php';

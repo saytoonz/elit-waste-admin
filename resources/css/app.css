@@ -1,3 +1,32 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Public website */
+:root {
+    --brand: 115 13 155;
+    --brand-accent: 243 122 17;
+    --brand-dark: 30 11 43;
+}
+
+@layer components {
+    .site-prose { @apply text-gray-600 leading-relaxed; }
+    .site-prose h2 { @apply font-display text-2xl font-bold text-gray-900 mt-10 mb-3; }
+    .site-prose h3 { @apply font-display text-xl font-bold text-gray-900 mt-8 mb-2; }
+    .site-prose p { @apply my-4; }
+    .site-prose ul { @apply my-4 list-disc pl-6 space-y-1; }
+    .site-prose ol { @apply my-4 list-decimal pl-6 space-y-1; }
+    .site-prose a { @apply text-brand font-semibold underline underline-offset-2; }
+    .site-prose strong { @apply text-gray-900 font-semibold; }
+    .site-prose blockquote { @apply border-l-4 border-brand pl-4 italic text-gray-700 my-6; }
+    .site-prose-invert, .site-prose-invert h2, .site-prose-invert h3, .site-prose-invert strong { @apply text-white; }
+    .site-prose-invert { @apply text-white/80; }
+}
+
+/* Fade-up on scroll; only hidden when JS is running so content never disappears */
+.js .reveal { opacity: 0; transform: translateY(18px); transition: opacity .7s ease, transform .7s ease; }
+.js .reveal.is-visible { opacity: 1; transform: none; }
+@media (prefers-reduced-motion: reduce) {
+    .js .reveal { opacity: 1; transform: none; transition: none; }
+}
+[x-cloak] { display: none !important; }

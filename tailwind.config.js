@@ -13,6 +13,7 @@ export default {
         extend: {
             fontFamily: {
                 sans: ['Figtree', ...defaultTheme.fontFamily.sans],
+                display: ['"Plus Jakarta Sans"', 'Figtree', ...defaultTheme.fontFamily.sans],
             },
             colors: {
                 primary: '#730D9B',
@@ -23,6 +24,12 @@ export default {
                     cyan: '#4BBCE6',
                 },
                 background: '#F7EEF3',
+                // Public website colours — set from Website → Settings via CSS variables
+                brand: {
+                    DEFAULT: 'rgb(var(--brand) / <alpha-value>)',
+                    accent: 'rgb(var(--brand-accent) / <alpha-value>)',
+                    dark: 'rgb(var(--brand-dark) / <alpha-value>)',
+                },
             },
         },
     },

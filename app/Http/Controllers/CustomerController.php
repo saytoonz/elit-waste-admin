@@ -69,6 +69,11 @@ class CustomerController extends Controller
         
         \App\Services\AuditService::log('Created Customer', "Name: {$validated['name']}");
 
+        // Created via "Convert to customer" on a website lead → link it and mark it won
+        if ($leadId = session()->pull('converting_lead_id')) {
+            \App\Models\Website\WebsiteLead::whereKey($leadId)->update(['customer_id' => $customer->id, 'status' => 'Won']);
+        }
+
         // Auto-create subscription if plan selected
         if ($request->filled('service_plan_id')) {
             $plan = \App\Models\ServicePlan::find($request->service_plan_id);
