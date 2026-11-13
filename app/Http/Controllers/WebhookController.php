@@ -90,7 +90,7 @@ class WebhookController extends Controller
                 if ($invoice->customer && $invoice->customer->phone) {
                     $formattedAmount = number_format($amount, 2);
                     $msg = "Payment Received: GHS {$formattedAmount} for Invoice #{$invoice->invoice_number}. Thanks! - Elite Waste";
-                    \App\Jobs\SendSmsJob::dispatch($invoice->customer->phone, $msg);
+                    \App\Jobs\SendSmsJob::send($invoice->customer->phone, $msg, 'payment', $invoice->customer_id);
                     Log::info("Webhook: dispatched confirmation SMS to {$invoice->customer->phone} for #{$invoice->invoice_number}");
                 }
 

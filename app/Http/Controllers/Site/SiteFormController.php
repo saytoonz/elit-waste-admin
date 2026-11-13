@@ -73,7 +73,17 @@ class SiteFormController extends Controller
             $message = "New website {$lead->type_label}: {$lead->name}"
                 . ($lead->phone ? ", {$lead->phone}" : '')
                 . ($lead->location ? " ({$lead->location})" : '');
-            app(MyCSMSService::class)->send($phone, Str::limit($message, 300));
+            $message = Str::limit($message, 300);
+            $gateway = app(MyCSMSService::class);
+            $sent = $gateway->send($phone, $message);
+            \App\Models\SmsMessage::create([
+                'phone' => $phone, 'message' => $message, 'type' => 'lead_alert', 'profile' => 'provider',
+                'status' => $sent ? 'Sent' : 'Failed', 'attempts' => 1,
+                'error' => $sent ? null : mb_substr((string) ($gateway->lastResult['error'] ?? ''), 0, 255),
+                'gateway_status' => $gateway->lastResult['status'] ?? null,
+                'gateway_response' => isset($gateway->lastResult['body']) ? mb_substr($gateway->lastResult['body'], 0, 2000) : null,
+                'sent_at' => $sent ? now() : null,
+            ]);
         } catch (\Throwable $e) {
             Log::warning('Lead SMS alert failed: ' . $e->getMessage());
         }

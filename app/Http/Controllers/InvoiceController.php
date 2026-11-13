@@ -66,7 +66,7 @@ class InvoiceController extends Controller
              $amount = number_format($invoice->amount, 2);
              $link = route('public.pay.show', $invoice); // Generate public link
              $msg = "New Invoice #{$invoice->invoice_number} Generated. Amount: GHS {$amount}. Pay here: {$link}";
-             \App\Jobs\SendSmsJob::dispatch($invoice->customer->phone, $msg);
+             \App\Jobs\SendSmsJob::send($invoice->customer->phone, $msg, 'invoice', $invoice->customer_id);
         }
 
         return redirect()->route('invoices.index')->with('success', 'Invoice created successfully.');

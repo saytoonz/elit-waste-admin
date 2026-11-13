@@ -91,7 +91,7 @@ class SendBillingReminders extends Command
             if ($dryRun) {
                 $this->line("→ {$phone}: {$message}");
             } else {
-                SendSmsJob::dispatch($phone, $message, SendSmsJob::PROFILE_REMINDER);
+                SendSmsJob::send($phone, $message, 'reminder', $customerInvoices->first()->customer_id, SendSmsJob::PROFILE_REMINDER);
             }
             $sent++;
         }

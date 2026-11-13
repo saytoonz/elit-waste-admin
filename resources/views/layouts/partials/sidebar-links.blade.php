@@ -54,6 +54,14 @@
         SMS Broadcasts
     </a>
 </li>
+<li>
+    <a href="{{ route('sms_logs.index') }}" class="{{ request()->routeIs('sms_logs.*') ? 'bg-secondary text-white' : 'text-indigo-200 hover:text-white hover:bg-secondary' }} group flex gap-x-3 rounded-md p-2 text-sm font-semibold leading-6">
+        <svg class="h-6 w-6 shrink-0 {{ request()->routeIs('sms_logs.*') ? 'text-white' : 'text-indigo-200 group-hover:text-white' }}" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0ZM3.75 12h.007v.008H3.75V12Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm-.375 5.25h.007v.008H3.75v-.008Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z"/>
+        </svg>
+        SMS Log
+    </a>
+</li>
 @endrole
 
 <li>

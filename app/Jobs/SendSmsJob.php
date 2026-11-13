@@ -6,6 +6,7 @@ use App\Models\Platform\PlatformSubscription;
 use App\Models\Platform\SmsBundle;
 use App\Models\SmsBroadcast;
 use App\Models\SmsBroadcastRecipient;
+use App\Models\SmsMessage;
 use App\Services\MyCSMSService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -24,6 +25,15 @@ class SendSmsJob implements ShouldQueue
     // but may not dip into the bundle's reserve, which is kept for transactional SMS.
     public const PROFILE_REMINDER = 'reminder';
 
+    /** Never retry automatically: a retry after a gateway timeout can double-send. */
+    public $tries = 1;
+
+    // Plain (non-promoted) properties with defaults, so jobs serialized before these
+    // existed still unserialize cleanly.
+    public string $type = 'other';
+    public ?int $customerId = null;
+    public ?int $smsMessageId = null;
+
     public function __construct(
         public string $phone,
         public string $message,
@@ -33,13 +43,48 @@ class SendSmsJob implements ShouldQueue
     ) {
     }
 
+    /**
+     * Log + queue an SMS. Preferred entry point: the message shows up in the SMS
+     * log as "Queued" immediately, even before the worker picks it up.
+     */
+    public static function send(
+        string $phone,
+        string $message,
+        string $type = 'other',
+        ?int $customerId = null,
+        string $profile = self::PROFILE_CUSTOMER,
+        ?int $broadcastId = null,
+        ?int $recipientId = null,
+    ): SmsMessage {
+        $log = SmsMessage::create([
+            'phone'            => $phone,
+            'message'          => $message,
+            'type'             => $type,
+            'profile'          => $profile,
+            'status'           => 'Queued',
+            'customer_id'      => $customerId,
+            'sms_broadcast_id' => $broadcastId,
+        ]);
+
+        $job = new static($phone, $message, $profile, $broadcastId, $recipientId);
+        $job->type = $type;
+        $job->customerId = $customerId;
+        $job->smsMessageId = $log->id;
+        dispatch($job);
+
+        return $log;
+    }
+
     public function handle(MyCSMSService $smsService): void
     {
         Log::info("Processing SMS Job ({$this->profile}) for {$this->phone}");
 
+        $this->logRow()?->increment('attempts');
+
         if ($this->profile === self::PROFILE_PROVIDER) {
             // Provider/system SMS — unlimited quota, send directly
-            $this->dispatchToGateway($smsService);
+            $sent = $this->dispatchToGateway($smsService);
+            $this->record($sent ? 'sent' : 'failed', 0, $sent ? null : $smsService->lastResult['error'] ?? null, $smsService);
             return;
         }
 
@@ -58,13 +103,13 @@ class SendSmsJob implements ShouldQueue
 
             if ($hasSmsSubscription) {
                 Log::warning("SMS skipped — no active bundle. Pay the SMS invoice to restore service. ({$this->phone})");
-                $this->recordBroadcastOutcome('skipped', 0, 'No active SMS bundle — pay the SMS invoice.');
+                $this->record('skipped', 0, 'No active SMS bundle — pay the SMS invoice.');
                 return;
             }
 
             Log::info("SMS (no bundle, no subscription — legacy path) sending unmetered to {$this->phone}");
             $sent = $this->dispatchToGateway($smsService);
-            $this->recordBroadcastOutcome($sent ? 'sent' : 'failed', 0, $sent ? null : 'Gateway rejected the message.');
+            $this->record($sent ? 'sent' : 'failed', 0, $sent ? null : $smsService->lastResult['error'] ?? null, $smsService);
             return;
         }
 
@@ -76,7 +121,9 @@ class SendSmsJob implements ShouldQueue
         if (!$bundle->consume($credits, $reserve)) {
             $why = $reserve > 0 ? " above the {$reserve}-credit reserve for transactional SMS" : '';
             Log::warning("SMS skipped ({$this->profile}) — bundle #{$bundle->id} lacks {$credits} credit(s){$why}, or is exhausted/expired ({$this->phone})");
-            $this->recordBroadcastOutcome('skipped', 0, "Needs {$credits} credit(s) — bundle exhausted, expired, or short.");
+            $this->record('skipped', 0, $reserve > 0
+                ? "Needs {$credits} credit(s) — only the reserve for payment/invoice SMS is left."
+                : "Needs {$credits} credit(s) — bundle exhausted, expired, or short.");
             return;
         }
 
@@ -92,7 +139,13 @@ class SendSmsJob implements ShouldQueue
             Log::info("Refunded {$credits} SMS credit(s) to bundle #{$bundle->id} after gateway failure");
         }
 
-        $this->recordBroadcastOutcome($sent ? 'sent' : 'failed', $sent ? $credits : 0, $sent ? null : 'Gateway rejected the message.');
+        $this->record($sent ? 'sent' : 'failed', $sent ? $credits : 0, $sent ? null : $smsService->lastResult['error'] ?? null, $smsService);
+    }
+
+    /** The job crashed (exception/timeout) — make sure the log doesn't stay "Queued". */
+    public function failed(?\Throwable $e): void
+    {
+        $this->record('failed', 0, 'Job error: ' . ($e?->getMessage() ?? 'unknown'));
     }
 
     /**
@@ -105,6 +158,38 @@ class SendSmsJob implements ShouldQueue
             Log::warning("SMS Job failed at gateway for {$this->phone}");
         }
         return $success;
+    }
+
+    /** The SMS log row for this job, created on the fly for jobs queued before logging existed. */
+    protected function logRow(): ?SmsMessage
+    {
+        try {
+            if ($this->smsMessageId && ($row = SmsMessage::find($this->smsMessageId))) {
+                return $row;
+            }
+
+            $row = SmsMessage::create([
+                'phone'            => $this->phone,
+                'message'          => $this->message,
+                'type'             => $this->broadcastId ? 'broadcast' : $this->type,
+                'profile'          => $this->profile,
+                'status'           => 'Queued',
+                'customer_id'      => $this->customerId,
+                'sms_broadcast_id' => $this->broadcastId,
+            ]);
+            $this->smsMessageId = $row->id;
+            return $row;
+        } catch (\Throwable $e) {
+            Log::warning('SMS log write failed: ' . $e->getMessage());
+            return null;
+        }
+    }
+
+    /** Record the outcome on the SMS log and, for broadcasts, on the recipient row. */
+    protected function record(string $outcome, int $credits = 0, ?string $error = null, ?MyCSMSService $gateway = null): void
+    {
+        $this->logRow()?->markOutcome(ucfirst($outcome), $credits, $error, $gateway?->lastResult);
+        $this->recordBroadcastOutcome($outcome, $credits, $error);
     }
 
     /**
@@ -125,7 +210,7 @@ class SendSmsJob implements ShouldQueue
                 $recipient->update([
                     'status'  => ucfirst($outcome), // Sent | Failed | Skipped
                     'credits' => $credits,
-                    'error'   => $error,
+                    'error'   => $error ? mb_substr($error, 0, 255) : null,
                     'sent_at' => $outcome === 'sent' ? now() : null,
                 ]);
             }

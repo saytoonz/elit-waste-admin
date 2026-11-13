@@ -139,7 +139,7 @@ class SmsBroadcastService
                 'message'          => $messages[$i]['body'],
                 'status'           => 'Queued',
             ]);
-            SendSmsJob::dispatch($row->phone, $row->message, SendSmsJob::PROFILE_CUSTOMER, $broadcast->id, $row->id);
+            SendSmsJob::send($row->phone, $row->message, 'broadcast', $row->customer_id, SendSmsJob::PROFILE_CUSTOMER, $broadcast->id, $row->id);
         }
 
         AuditService::log('Launched SMS Broadcast', "#{$broadcast->id} to {$recipients->count()} customer(s), ~{$creditsNeeded} credit(s)");
@@ -159,7 +159,7 @@ class SmsBroadcastService
 
         foreach ($rows as $row) {
             $row->update(['status' => 'Queued', 'error' => null]);
-            SendSmsJob::dispatch($row->phone, $row->message, SendSmsJob::PROFILE_CUSTOMER, $broadcast->id, $row->id);
+            SendSmsJob::send($row->phone, $row->message, 'broadcast', $row->customer_id, SendSmsJob::PROFILE_CUSTOMER, $broadcast->id, $row->id);
         }
 
         if ($rows->isNotEmpty()) {

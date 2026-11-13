@@ -52,7 +52,7 @@ class SendPlatformReminders extends Command
 
         // Reminder profile → consumes the customer's SMS credits, but never the reserve
         // kept for payment confirmations and invoice notices.
-        SendSmsJob::dispatch($phone, $message, SendSmsJob::PROFILE_REMINDER);
+        SendSmsJob::send($phone, $message, 'admin_reminder', null, SendSmsJob::PROFILE_REMINDER);
         PlatformConfig::setReminderLastSent($today);
         AuditService::log('Sent Platform Billing Reminder', "to {$phone}, ~{$credits} credit(s)");
 

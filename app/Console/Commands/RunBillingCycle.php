@@ -127,7 +127,7 @@ class RunBillingCycle extends Command
         if ($subscription->customer && $subscription->customer->phone) {
             $amount = number_format($subscription->amount, 2);
             $msg = "New Invoice #{$invoice->invoice_number} Generated. Amount Due: GHS {$amount}. Due Date: {$dueDate->format('d M Y')}.";
-            \App\Jobs\SendSmsJob::dispatch($subscription->customer->phone, $msg);
+            \App\Jobs\SendSmsJob::send($subscription->customer->phone, $msg, 'invoice', $subscription->customer_id);
         }
 
         $this->info("Invoice {$invoice->invoice_number} generated for Customer ID: {$subscription->customer_id} (period {$period}).");

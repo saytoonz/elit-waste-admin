@@ -115,7 +115,7 @@ class CustomerController extends Controller
                 $template
             );
 
-            \App\Jobs\SendSmsJob::dispatch($validated['phone'], $msg);
+            \App\Jobs\SendSmsJob::send($validated['phone'], $msg, 'welcome', $customer->id);
         }
 
         return redirect()->route('customers.index')->with('success', 'Customer created successfully.');

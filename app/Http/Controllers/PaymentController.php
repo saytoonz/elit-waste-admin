@@ -113,7 +113,7 @@ class PaymentController extends Controller
                     if ($invoice->customer && $invoice->customer->phone) {
                         $amount = number_format($amountPaid, 2);
                         $msg = "Payment Received: GHS {$amount} for Invoice #{$invoice->invoice_number}. Thanks! - Elite Waste";
-                        \App\Jobs\SendSmsJob::dispatch($invoice->customer->phone, $msg);
+                        \App\Jobs\SendSmsJob::send($invoice->customer->phone, $msg, 'payment', $invoice->customer_id);
                     }
                     
                     return redirect()->route('invoices.show', $invoice)->with('success', 'Payment successful! Invoice updated.');
@@ -165,7 +165,7 @@ class PaymentController extends Controller
         if ($invoice->customer && $invoice->customer->phone) {
             $amount = number_format($payment->amount, 2);
             $msg = "Cash Payment Received: GHS {$amount} for Invoice #{$invoice->invoice_number}. recorded by " . auth()->user()->name . ". Thanks! - Elite Waste";
-            \App\Jobs\SendSmsJob::dispatch($invoice->customer->phone, $msg);
+            \App\Jobs\SendSmsJob::send($invoice->customer->phone, $msg, 'payment', $invoice->customer_id);
         }
 
         return redirect()->back()->with('success', "Cash payment of GHS {$request->amount} recorded.");

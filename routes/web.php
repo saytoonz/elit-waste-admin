@@ -132,6 +132,11 @@ Route::middleware(['auth', 'platform.block'])->group(function () {
     Route::get('/payments/{payment}/print', [\App\Http\Controllers\PaymentController::class, 'print'])->name('payments.print');
 
     // SMS Broadcasts (message customers by zone, type, debtors, or selection)
+    Route::middleware('role:Owner|Admin')->prefix('sms-log')->name('sms_logs.')->group(function () {
+        Route::get('/', [\App\Http\Controllers\SmsLogController::class, 'index'])->name('index');
+        Route::post('/{smsMessage}/retry', [\App\Http\Controllers\SmsLogController::class, 'retry'])->name('retry');
+    });
+
     Route::middleware('role:Owner|Admin')->prefix('sms-broadcasts')->name('sms_broadcasts.')->group(function () {
         Route::get('/', [\App\Http\Controllers\SmsBroadcastController::class, 'index'])->name('index');
         Route::get('/create', [\App\Http\Controllers\SmsBroadcastController::class, 'create'])->name('create');

@@ -18,6 +18,12 @@ class MyCSMSService
     protected string $baseUrl;
     protected string $messageType;
 
+    /**
+     * Details of the most recent send(): ['status' => ?int HTTP status,
+     * 'body' => ?string response body, 'error' => ?string reason when not accepted].
+     */
+    public array $lastResult = [];
+
     public function __construct()
     {
         $this->apiKey      = config('services.mycsms.api_key');
@@ -35,8 +41,11 @@ class MyCSMSService
      */
     public function send(string|array $phone, string $message): bool
     {
+        $this->lastResult = ['status' => null, 'body' => null, 'error' => null];
+
         if (empty($this->apiKey)) {
             Log::warning('MyCSMS: API Key is missing. Message not sent.');
+            $this->lastResult['error'] = 'SMS API key is not configured.';
             return false;
         }
 
@@ -49,6 +58,7 @@ class MyCSMSService
 
         if (empty($phones)) {
             Log::warning('MyCSMS: No valid phone numbers provided.');
+            $this->lastResult['error'] = 'No valid phone number.';
             return false;
         }
 
@@ -64,15 +74,30 @@ class MyCSMSService
                     'message_type' => $this->messageType,
                 ]);
 
+            $this->lastResult['status'] = $response->status();
+            $this->lastResult['body']   = $response->body();
+
+            // HTTP 2xx can still carry {"status":"error","message":"..."} (e.g. low
+            // balance, unapproved sender ID) — that message was NOT sent.
+            $bodyStatus = strtolower((string) ($response->json('status') ?? ''));
+            if ($response->successful() && in_array($bodyStatus, ['error', 'failed', 'fail'], true)) {
+                $reason = (string) ($response->json('message') ?? 'unknown reason');
+                Log::error('MyCSMS: gateway error for ' . implode(', ', $phones) . ' — ' . $response->body());
+                $this->lastResult['error'] = 'Gateway error: ' . $reason;
+                return false;
+            }
+
             if ($response->successful()) {
                 Log::info('MyCSMS: SMS sent to ' . implode(', ', $phones) . ' — ' . $response->body());
                 return true;
             }
 
             Log::error('MyCSMS: HTTP ' . $response->status() . ' for ' . implode(', ', $phones) . ' — ' . $response->body());
+            $this->lastResult['error'] = 'Gateway rejected the message (HTTP ' . $response->status() . ').';
             return false;
         } catch (\Throwable $e) {
             Log::error('MyCSMS: Exception while sending to ' . implode(', ', $phones) . ' — ' . $e->getMessage());
+            $this->lastResult['error'] = 'Could not reach the gateway: ' . $e->getMessage();
             return false;
         }
     }
