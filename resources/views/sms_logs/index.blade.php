@@ -24,16 +24,23 @@
         <div class="flex flex-wrap items-center justify-between gap-3">
             <p class="text-sm text-gray-600">
                 Every SMS the system sends: payments, invoices, reminders, broadcasts and alerts.
-                <span class="text-gray-500">"Sent" means the SMS gateway accepted the message.</span>
+                <span class="text-gray-500">"Sent" means MyCSMS accepted it for delivery — MyCSMS does not provide handset delivery reports for SMS.</span>
             </p>
-            @if($bundle)
-                <p class="text-sm text-gray-600">
-                    <span class="font-semibold {{ $bundle->remaining === 0 ? 'text-red-700' : 'text-emerald-700' }}">{{ number_format($bundle->remaining) }}</span>
-                    credits left · expires {{ $bundle->period_end->format('M d, Y') }}
-                </p>
-            @else
-                <p class="text-sm text-amber-700 font-medium">No active SMS bundle.</p>
-            @endif
+            <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gray-600">
+                @if($bundle)
+                    <p>
+                        <span class="font-semibold {{ $bundle->remaining === 0 ? 'text-red-700' : 'text-emerald-700' }}">{{ number_format($bundle->remaining) }}</span>
+                        bundle credits · expires {{ $bundle->period_end->format('M d, Y') }}
+                    </p>
+                @else
+                    <p class="text-amber-700 font-medium">No active SMS bundle.</p>
+                @endif
+                @if($gatewayBalance !== null)
+                    <p title="Balance on the MyCSMS gateway account. When it reaches zero every SMS fails.">
+                        Gateway wallet: <span class="font-semibold {{ $gatewayBalance <= 0 ? 'text-red-700' : ($gatewayBalance < 5 ? 'text-amber-700' : 'text-emerald-700') }}">{{ number_format($gatewayBalance, 2) }}</span>
+                    </p>
+                @endif
+            </div>
         </div>
 
         {{-- Status chips: counts for the current filters; click to filter --}}
@@ -57,7 +64,7 @@
             @if(!empty($filters['status']))<input type="hidden" name="status" value="{{ $filters['status'] }}">@endif
             <div class="lg:col-span-2">
                 <label class="block text-xs font-medium text-gray-600">Search</label>
-                <input type="text" name="q" value="{{ $filters['q'] ?? '' }}" placeholder="Phone, customer or text"
+                <input type="text" name="q" value="{{ $filters['q'] ?? '' }}" placeholder="Phone, customer, text or message ID"
                        class="mt-1 block w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-primary focus:ring-primary">
             </div>
             <div>
@@ -138,11 +145,14 @@
                                 </tr>
                                 <tr x-cloak x-show="open" class="bg-gray-50/60">
                                     <td colspan="7" class="px-4 py-3 text-xs text-gray-600">
-                                        <div class="grid gap-2 sm:grid-cols-4">
+                                        <div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
                                             <div><span class="font-semibold">Queued:</span> {{ $m->created_at->format('M d, Y H:i:s') }}</div>
                                             <div><span class="font-semibold">Sent:</span> {{ $m->sent_at?->format('M d, Y H:i:s') ?? '—' }}</div>
                                             <div><span class="font-semibold">Attempts:</span> {{ $m->attempts }}</div>
                                             <div><span class="font-semibold">Gateway HTTP:</span> {{ $m->gateway_status ?? '—' }}</div>
+                                            <div class="sm:col-span-2 break-all"><span class="font-semibold">Gateway message ID:</span> {{ $m->gateway_message_id ?? '—' }}</div>
+                                            <div><span class="font-semibold">Gateway status:</span> {{ $m->gateway_state ?? '—' }}</div>
+                                            <div><span class="font-semibold">Gateway cost:</span> {{ $m->gateway_cost !== null ? rtrim(rtrim(number_format((float) $m->gateway_cost, 4), '0'), '.') : '—' }}</div>
                                         </div>
                                         @if($m->gateway_response)
                                             <div class="mt-2"><span class="font-semibold">Gateway response:</span>

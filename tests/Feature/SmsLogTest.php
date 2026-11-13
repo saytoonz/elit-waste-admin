@@ -23,7 +23,14 @@ class SmsLogTest extends TestCase
 
     public function test_accepted_sms_is_logged_as_sent_with_gateway_details(): void
     {
-        Http::fake(['*' => Http::response(['status' => 'success', 'data' => ['uid' => 'abc123']], 200)]);
+        // Shape from the MyCSMS v3 docs (Send SMS sample response)
+        Http::fake(['*' => Http::response([
+            'status' => 'success', 'code' => 200, 'message' => 'All messages processed successfully',
+            'data' => [
+                'results'   => [['phone' => '233240000001', 'message_id' => 'abc123', 'status' => 'processed', 'scheduled_at' => null]],
+                'cost_info' => ['per_message' => 0.05, 'total_cost' => 0.05, 'balance_before' => 10.05, 'balance_after' => 10.0],
+            ],
+        ], 200)]);
         $customer = Customer::factory()->create();
 
         SendSmsJob::send('0240000001', 'Payment Received: GHS 50.00', 'payment', $customer->id);
@@ -33,7 +40,10 @@ class SmsLogTest extends TestCase
         $this->assertSame('payment', $log->type);
         $this->assertSame($customer->id, $log->customer_id);
         $this->assertSame(200, $log->gateway_status);
-        $this->assertStringContainsString('abc123', $log->gateway_response);
+        $this->assertSame('abc123', $log->gateway_message_id);
+        $this->assertSame('processed', $log->gateway_state);
+        $this->assertEquals(0.05, (float) $log->gateway_cost);
+        $this->assertSame(10.0, app(\App\Services\MyCSMSService::class)->balance()); // cached from balance_after
         $this->assertNotNull($log->sent_at);
         $this->assertSame(1, $log->attempts);
     }
@@ -77,5 +87,16 @@ class SmsLogTest extends TestCase
         $this->actingAs($owner)->post(route('sms_logs.retry', $failed))->assertRedirect();
 
         $this->assertSame(1, SmsMessage::where('phone', '0240000009')->where('status', 'Sent')->count());
+    }
+
+    public function test_rejected_recipient_is_failed_even_on_http_200(): void
+    {
+        Http::fake(['*' => Http::response(['status' => 'success', 'data' => ['results' => [['phone' => '233240000001', 'message_id' => 'x1', 'status' => 'rejected']]]], 200)]);
+
+        SendSmsJob::send('0240000001', 'Hello', 'invoice');
+
+        $log = SmsMessage::sole();
+        $this->assertSame('Failed', $log->status);
+        $this->assertSame('x1', $log->gateway_message_id);
     }
 }

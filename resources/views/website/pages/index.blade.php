@@ -23,6 +23,7 @@
     </div>
 
     <div class="mt-8 overflow-hidden bg-white shadow ring-1 ring-black ring-opacity-5 sm:rounded-lg">
+        <div class="overflow-x-auto">
         <table class="min-w-full divide-y divide-gray-300">
             <thead class="bg-gray-50">
                 <tr>
@@ -59,5 +60,6 @@
                 @endforeach
             </tbody>
         </table>
+        </div>
     </div>
 </x-app-layout>

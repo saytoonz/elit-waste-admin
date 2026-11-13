@@ -25,7 +25,7 @@
                                     </div>
                                 @endif
                                 <input type="file" name="company_logo" id="company_logo" accept="image/*"
-                                    class="rounded-md bg-white px-2.5 py-1.5 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50">
+                                    class="min-w-0 max-w-full flex-1 rounded-md bg-white px-2.5 py-1.5 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50">
                             </div>
                             <p class="mt-2 text-xs text-gray-500">Will be used as the app icon (favicon) and header logo.</p>
                         </div>

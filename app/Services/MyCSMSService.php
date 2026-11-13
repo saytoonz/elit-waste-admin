@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -20,9 +21,45 @@ class MyCSMSService
 
     /**
      * Details of the most recent send(): ['status' => ?int HTTP status,
-     * 'body' => ?string response body, 'error' => ?string reason when not accepted].
+     * 'body' => ?string response body, 'error' => ?string reason when not accepted,
+     * 'message_id' => ?string gateway message id, 'state' => ?string per-recipient
+     * status (e.g. "processed"), 'cost' => ?float].
      */
     public array $lastResult = [];
+
+    public const BALANCE_CACHE_KEY = 'mycsms.balance';
+
+    /**
+     * Gateway (MyCSMS wallet) balance, cached for a few minutes. Null when it
+     * can't be fetched. This is the provider account balance, separate from the
+     * app's SMS bundle credits; when it runs out, every SMS fails at the gateway.
+     */
+    public function balance(bool $fresh = false): ?float
+    {
+        if (!$fresh && Cache::has(self::BALANCE_CACHE_KEY)) {
+            return Cache::get(self::BALANCE_CACHE_KEY);
+        }
+        if (empty($this->apiKey)) return null;
+        // Recent failed lookup: don't make every page load wait on a down gateway.
+        if (!$fresh && Cache::has(self::BALANCE_CACHE_KEY . '.failed')) return null;
+
+        try {
+            $url = preg_replace('#/send$#', '/balance', $this->baseUrl);
+            $response = Http::withToken($this->apiKey)->acceptJson()->timeout(5)->get($url);
+            $balance = $response->successful() ? $response->json('data.balance') : null;
+            if (!is_numeric($balance)) {
+                Cache::put(self::BALANCE_CACHE_KEY . '.failed', true, now()->addMinutes(2));
+                return null;
+            }
+
+            Cache::put(self::BALANCE_CACHE_KEY, (float) $balance, now()->addMinutes(10));
+            return (float) $balance;
+        } catch (\Throwable $e) {
+            Log::warning('MyCSMS: balance lookup failed — ' . $e->getMessage());
+            Cache::put(self::BALANCE_CACHE_KEY . '.failed', true, now()->addMinutes(2));
+            return null;
+        }
+    }
 
     public function __construct()
     {
@@ -41,7 +78,7 @@ class MyCSMSService
      */
     public function send(string|array $phone, string $message): bool
     {
-        $this->lastResult = ['status' => null, 'body' => null, 'error' => null];
+        $this->lastResult = ['status' => null, 'body' => null, 'error' => null, 'message_id' => null, 'state' => null, 'cost' => null];
 
         if (empty($this->apiKey)) {
             Log::warning('MyCSMS: API Key is missing. Message not sent.');
@@ -88,6 +125,22 @@ class MyCSMSService
             }
 
             if ($response->successful()) {
+                // Per-recipient result (single-recipient sends use the first entry).
+                $result = $response->json('data.results.0') ?? [];
+                $this->lastResult['message_id'] = $result['message_id'] ?? null;
+                $this->lastResult['state']      = $result['status'] ?? null;
+                $this->lastResult['cost']       = $response->json('data.cost_info.total_cost');
+                if (is_numeric($balance = $response->json('data.cost_info.balance_after'))) {
+                    Cache::put(self::BALANCE_CACHE_KEY, (float) $balance, now()->addMinutes(10));
+                }
+
+                $state = strtolower((string) ($result['status'] ?? ''));
+                if (in_array($state, ['failed', 'fail', 'rejected', 'error', 'undelivered'], true)) {
+                    Log::error('MyCSMS: recipient rejected ' . implode(', ', $phones) . ' — ' . $response->body());
+                    $this->lastResult['error'] = 'Gateway did not accept the recipient (' . $state . ').';
+                    return false;
+                }
+
                 Log::info('MyCSMS: SMS sent to ' . implode(', ', $phones) . ' — ' . $response->body());
                 return true;
             }

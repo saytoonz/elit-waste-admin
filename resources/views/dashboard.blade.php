@@ -163,6 +163,7 @@
         <div>
             <h3 class="text-lg font-semibold text-gray-900 mb-3">Recent Payments</h3>
             <div class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 sm:rounded-lg bg-white">
+                <div class="overflow-x-auto">
                 <table class="min-w-full divide-y divide-gray-300">
                     <thead class="bg-gray-50">
                         <tr>
@@ -183,11 +184,13 @@
                         @endforelse
                     </tbody>
                 </table>
+                </div>
             </div>
         </div>
         <div>
             <h3 class="text-lg font-semibold text-gray-900 mb-3">Recent Expenses</h3>
             <div class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 sm:rounded-lg bg-white">
+                <div class="overflow-x-auto">
                 <table class="min-w-full divide-y divide-gray-300">
                     <thead class="bg-gray-50">
                         <tr>
@@ -210,6 +213,7 @@
                         @endforelse
                     </tbody>
                 </table>
+                </div>
             </div>
         </div>
     </div>

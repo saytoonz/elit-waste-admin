@@ -21,6 +21,7 @@
 
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
             @if($broadcasts->isNotEmpty())
+                <div class="overflow-x-auto">
                 <table class="min-w-full text-sm">
                     <thead class="bg-gray-50">
                         <tr>
@@ -68,6 +69,7 @@
                         @endforeach
                     </tbody>
                 </table>
+                </div>
                 <div class="px-4 py-3 border-t border-gray-100">{{ $broadcasts->links() }}</div>
             @else
                 <div class="p-8 text-center text-sm text-gray-500">

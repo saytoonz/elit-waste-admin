@@ -94,6 +94,7 @@
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
             <h3 class="text-base font-semibold text-gray-900 mb-4">Bundle History</h3>
             @if($history->isNotEmpty())
+                <div class="overflow-x-auto">
                 <table class="min-w-full text-sm">
                     <thead>
                         <tr class="border-b border-gray-200">
@@ -132,6 +133,7 @@
                         @endforeach
                     </tbody>
                 </table>
+                </div>
             @else
                 <p class="text-sm text-gray-500">No history yet. Bundles appear here after their period ends or they're exhausted.</p>
             @endif

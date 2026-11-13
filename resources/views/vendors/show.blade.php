@@ -32,6 +32,7 @@
 
             <div class="bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl p-6">
                 <h3 class="text-base font-semibold text-gray-900 mb-3">Recent Expenses</h3>
+                <div class="overflow-x-auto">
                 <table class="min-w-full divide-y divide-gray-200">
                     <thead class="bg-gray-50">
                         <tr>
@@ -58,6 +59,7 @@
                         @endforelse
                     </tbody>
                 </table>
+                </div>
             </div>
         </div>
 

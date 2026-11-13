@@ -14,6 +14,7 @@
                  <a href="{{ route('export.pdf', 'cash_approvals') }}" class="block rounded-md bg-white px-3 py-2 text-center text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50">PDF</a>
             </div>
         </div>
+        <div class="overflow-x-auto">
         <table class="min-w-full divide-y divide-gray-300">
             <thead class="bg-gray-50">
                 <tr>
@@ -52,6 +53,7 @@
                 @endforelse
             </tbody>
         </table>
+        </div>
         <div class="px-4 py-3 border-t border-gray-200">
             {{ $payments->links() }}
         </div>

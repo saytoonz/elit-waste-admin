@@ -38,6 +38,7 @@
         </div>
 
         <div class="bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl overflow-hidden">
+            <div class="overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-300">
                 <thead class="bg-gray-50">
                     <tr>
@@ -72,6 +73,7 @@
                     @endforelse
                 </tbody>
             </table>
+            </div>
             <div class="px-4 py-3 border-t border-gray-200">
                 {{ $payments->links() }}
             </div>

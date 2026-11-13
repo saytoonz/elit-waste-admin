@@ -25,7 +25,7 @@ class SmsMessage extends Model
 
     protected $fillable = [
         'phone', 'message', 'type', 'profile', 'status', 'credits', 'attempts', 'error',
-        'gateway_status', 'gateway_response', 'customer_id', 'sms_broadcast_id', 'sent_at',
+        'gateway_status', 'gateway_message_id', 'gateway_state', 'gateway_cost', 'gateway_response', 'customer_id', 'sms_broadcast_id', 'sent_at',
     ];
 
     protected $casts = [
@@ -57,7 +57,10 @@ class SmsMessage extends Model
             'status'           => $status,
             'credits'          => $credits,
             'error'            => $error ? mb_substr($error, 0, 255) : null,
-            'gateway_status'   => $gateway['status'] ?? $this->gateway_status,
+            'gateway_status'     => $gateway['status'] ?? $this->gateway_status,
+            'gateway_message_id' => $gateway['message_id'] ?? $this->gateway_message_id,
+            'gateway_state'      => $gateway['state'] ?? $this->gateway_state,
+            'gateway_cost'       => is_numeric($gateway['cost'] ?? null) ? $gateway['cost'] : $this->gateway_cost,
             'gateway_response' => isset($gateway['body']) ? mb_substr((string) $gateway['body'], 0, 2000) : $this->gateway_response,
             'sent_at'          => $status === 'Sent' ? now() : null,
         ]);

@@ -101,6 +101,7 @@
             <div class="p-0">
                 @if($customer->invoices->count() > 0)
                 <div class="overflow-hidden sm:rounded-lg">
+                    <div class="overflow-x-auto">
                     <table class="min-w-full divide-y divide-gray-300">
                         <thead class="bg-gray-50">
                             <tr>
@@ -127,6 +128,7 @@
                             @endforeach
                         </tbody>
                     </table>
+                    </div>
                 </div>
                 @else
                 <div class="text-center py-12">

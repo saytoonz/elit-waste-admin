@@ -6,6 +6,7 @@ use App\Jobs\SendSmsJob;
 use App\Models\Platform\SmsBundle;
 use App\Models\SmsMessage;
 use App\Services\AuditService;
+use App\Services\MyCSMSService;
 use Illuminate\Http\Request;
 
 class SmsLogController extends Controller
@@ -26,6 +27,7 @@ class SmsLogController extends Controller
             ->when($filters['to'] ?? null, fn($q, $v) => $q->whereDate('created_at', '<=', $v))
             ->when($filters['q'] ?? null, function ($q, $v) {
                 $q->where(fn($w) => $w->where('phone', 'like', "%{$v}%")
+                    ->orWhere('gateway_message_id', $v)
                     ->orWhere('message', 'like', "%{$v}%")
                     ->orWhereHas('customer', fn($c) => $c->where('name', 'like', "%{$v}%")));
             });
@@ -42,8 +44,9 @@ class SmsLogController extends Controller
             ->withQueryString();
 
         $bundle = SmsBundle::findActive();
+        $gatewayBalance = app(MyCSMSService::class)->balance();
 
-        return view('sms_logs.index', compact('messages', 'counts', 'filters', 'bundle'));
+        return view('sms_logs.index', compact('messages', 'counts', 'filters', 'bundle', 'gatewayBalance'));
     }
 
     /** Re-send a failed or skipped SMS as a new log entry. */

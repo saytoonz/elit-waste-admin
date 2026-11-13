@@ -19,6 +19,7 @@
             </div>
         </div>
 
+        <div class="overflow-x-auto">
         <table class="min-w-full text-sm">
             <thead class="bg-gray-50">
                 <tr>
@@ -48,6 +49,7 @@
                 @endif
             </tfoot>
         </table>
+        </div>
 
         @if($invoice->status === 'Cancelled')
             <div class="mt-8 text-center">

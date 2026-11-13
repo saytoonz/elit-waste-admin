@@ -59,6 +59,7 @@
         <div class="border-t border-gray-100 px-6 py-6">
             <h4 class="text-sm font-medium text-gray-900 mb-4">Payment History</h4>
             <div class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 sm:rounded-lg">
+                <div class="overflow-x-auto">
                 <table class="min-w-full divide-y divide-gray-300">
                     <thead class="bg-gray-50">
                         <tr>
@@ -89,6 +90,7 @@
                         @endforelse
                     </tbody>
                 </table>
+                </div>
             </div>
         </div>
 

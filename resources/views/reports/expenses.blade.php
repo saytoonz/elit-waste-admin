@@ -34,6 +34,7 @@
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
             <h3 class="text-lg font-semibold text-gray-900 mb-4">By Category</h3>
             <canvas id="catChart" height="180"></canvas>
+            <div class="overflow-x-auto">
             <table class="min-w-full mt-4 text-sm">
                 <thead>
                     <tr class="border-b border-gray-200">
@@ -52,6 +53,7 @@
                 @endforeach
                 </tbody>
             </table>
+            </div>
         </div>
 
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
@@ -61,6 +63,7 @@
 
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
             <h3 class="text-lg font-semibold text-gray-900 mb-4">Top Vendors</h3>
+            <div class="overflow-x-auto">
             <table class="min-w-full text-sm">
                 <thead>
                     <tr class="border-b border-gray-200">
@@ -79,10 +82,12 @@
                 @endforelse
                 </tbody>
             </table>
+            </div>
         </div>
 
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
             <h3 class="text-lg font-semibold text-gray-900 mb-4">By Payment Method</h3>
+            <div class="overflow-x-auto">
             <table class="min-w-full text-sm">
                 <thead>
                     <tr class="border-b border-gray-200">
@@ -99,6 +104,7 @@
                 @endforeach
                 </tbody>
             </table>
+            </div>
         </div>
     </div>
 

@@ -16,6 +16,7 @@
                     <span class="inline-flex items-center rounded-md px-3 py-1 text-sm font-semibold ring-1 ring-inset {{ $invoice->status_badge_classes }}">{{ $invoice->status }}</span>
                 </div>
 
+                <div class="overflow-x-auto">
                 <table class="min-w-full mt-6 text-sm">
                     <thead class="bg-gray-50">
                         <tr>
@@ -45,10 +46,12 @@
                         @endif
                     </tfoot>
                 </table>
+                </div>
             </div>
 
             <div class="bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl p-6">
                 <h3 class="text-base font-semibold text-gray-900 mb-3">Payments</h3>
+                <div class="overflow-x-auto">
                 <table class="min-w-full text-sm">
                     <thead>
                         <tr class="border-b border-gray-200">
@@ -71,6 +74,7 @@
                         @endforelse
                     </tbody>
                 </table>
+                </div>
             </div>
         </div>
 

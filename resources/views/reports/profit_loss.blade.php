@@ -37,6 +37,7 @@
         </div>
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
             <h3 class="text-lg font-semibold text-gray-900 mb-4">Expenses by Category</h3>
+            <div class="overflow-x-auto">
             <table class="min-w-full text-sm">
                 <thead>
                     <tr class="border-b border-gray-200">
@@ -64,6 +65,7 @@
                     </tr>
                 </tfoot>
             </table>
+            </div>
         </div>
     </div>
 

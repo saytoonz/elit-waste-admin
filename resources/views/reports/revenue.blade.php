@@ -5,13 +5,13 @@
 
     <div class="space-y-6">
         <!-- Summary -->
-        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex justify-between items-center">
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-center">
              <div>
                 <p class="text-sm font-medium text-gray-500">Total Revenue (Selected Period)</p>
                 <p class="mt-2 text-3xl font-bold text-green-600">GHS {{ number_format($totalRevenue, 2) }}</p>
             </div>
             <!-- Date Filter Form -->
-            <form method="GET" action="{{ route('reports.revenue') }}" class="flex gap-4 items-end">
+            <form method="GET" action="{{ route('reports.revenue') }}" class="flex flex-wrap gap-4 items-end">
                 <div>
                      <label for="start_date" class="block text-xs font-medium text-gray-700">Start Date</label>
                      <input type="date" name="start_date" value="{{ $startDate }}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm">
@@ -104,6 +104,7 @@
 
         <!-- Data Table -->
         <div class="bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl overflow-hidden">
+            <div class="overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-300">
                 <thead class="bg-gray-50">
                     <tr>
@@ -130,6 +131,7 @@
                     @endforelse
                 </tbody>
             </table>
+            </div>
         </div>
     </div>
 </x-app-layout>

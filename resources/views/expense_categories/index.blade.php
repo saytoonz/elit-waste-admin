@@ -17,6 +17,7 @@
     @if(session('error'))<div class="mt-4 rounded-md bg-red-50 p-3 text-sm text-red-700 border border-red-200">{{ session('error') }}</div>@endif
 
     <div class="mt-6 bg-white shadow ring-1 ring-black ring-opacity-5 sm:rounded-lg">
+        <div class="overflow-x-auto">
         <table class="min-w-full divide-y divide-gray-300">
             <thead class="bg-gray-50">
                 <tr>
@@ -58,6 +59,7 @@
                 @endforelse
             </tbody>
         </table>
+        </div>
     </div>
 
     <div class="mt-4">{{ $categories->links() }}</div>

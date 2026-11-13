@@ -88,6 +88,7 @@
             <h3 class="text-lg font-semibold text-gray-900 mb-4">By Trash Type</h3>
             <canvas id="typeChart" height="180"></canvas>
             <div class="mt-4 flow-root">
+                <div class="overflow-x-auto">
                 <table class="min-w-full divide-y divide-gray-200">
                     <thead>
                         <tr>
@@ -115,6 +116,7 @@
                         @endforelse
                     </tbody>
                 </table>
+                </div>
             </div>
         </div>
 
@@ -122,6 +124,7 @@
             <h3 class="text-lg font-semibold text-gray-900 mb-4">By Vehicle (Top 10)</h3>
             <canvas id="vehicleChart" height="180"></canvas>
             <div class="mt-4 flow-root">
+                <div class="overflow-x-auto">
                 <table class="min-w-full divide-y divide-gray-200">
                     <thead>
                         <tr>
@@ -142,6 +145,7 @@
                         @endforelse
                     </tbody>
                 </table>
+                </div>
             </div>
         </div>
     </div>
