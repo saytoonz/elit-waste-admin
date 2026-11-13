@@ -87,19 +87,42 @@
                 <span class="font-display text-lg font-extrabold leading-tight text-gray-900">{{ $siteName }}</span>
             </a>
 
+            {{-- Desktop: first few links inline, the rest under "More" so the bar never wraps --}}
+            @php
+                $headerInline = $header->take(5);
+                $headerMore   = $header->slice(5);
+                $moreActive   = $headerMore->contains(fn($i) => $i->isActive());
+            @endphp
             <div class="hidden xl:flex items-center gap-1">
-                @foreach($header as $item)
+                @foreach($headerInline as $item)
                     <a href="{{ $item->href }}" @if($item->new_tab) target="_blank" rel="noopener" @endif
-                       class="rounded-full px-3.5 py-2 text-sm font-semibold transition {{ $item->isActive() ? 'text-brand bg-brand/10' : 'text-gray-700 hover:text-brand' }}">{{ $item->label }}</a>
+                       class="whitespace-nowrap rounded-full px-3.5 py-2 text-sm font-semibold transition {{ $item->isActive() ? 'text-brand bg-brand/10' : 'text-gray-700 hover:text-brand' }}">{{ $item->label }}</a>
                 @endforeach
+
+                @if($headerMore->isNotEmpty())
+                    <div class="relative" x-data="{ open: false }" @click.outside="open = false" @keydown.escape="open = false">
+                        <button type="button" @click="open = !open" :aria-expanded="open" aria-haspopup="true"
+                                class="flex items-center gap-1 whitespace-nowrap rounded-full px-3.5 py-2 text-sm font-semibold transition {{ $moreActive ? 'text-brand bg-brand/10' : 'text-gray-700 hover:text-brand' }}">
+                            More
+                            <x-site.icon name="chevron-down" class="!h-4 !w-4 transition" ::class="open && 'rotate-180'" />
+                        </button>
+                        <div x-cloak x-show="open" x-transition.origin.top
+                             class="absolute right-0 top-full mt-2 w-52 rounded-2xl border border-gray-100 bg-white p-2 shadow-xl">
+                            @foreach($headerMore as $item)
+                                <a href="{{ $item->href }}" @if($item->new_tab) target="_blank" rel="noopener" @endif
+                                   class="block rounded-xl px-4 py-2.5 text-sm font-semibold transition {{ $item->isActive() ? 'bg-brand/10 text-brand' : 'text-gray-700 hover:bg-gray-50 hover:text-brand' }}">{{ $item->label }}</a>
+                            @endforeach
+                        </div>
+                    </div>
+                @endif
             </div>
 
-            <div class="hidden xl:flex items-center gap-3">
+            <div class="hidden xl:flex items-center gap-4 shrink-0">
                 @if($loginLabel && Route::has('login'))
-                    <a href="{{ route('login') }}" class="text-sm font-semibold text-gray-700 hover:text-brand">{{ $loginLabel }}</a>
+                    <a href="{{ route('login') }}" class="whitespace-nowrap text-sm font-semibold text-gray-700 hover:text-brand">{{ $loginLabel }}</a>
                 @endif
                 @if($ctaLabel = Website::setting('header_cta_label'))
-                    <a href="{{ Website::href(Website::setting('header_cta_url')) }}" class="rounded-full bg-brand px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-brand/25 transition hover:-translate-y-0.5 hover:bg-brand/90">{{ $ctaLabel }}</a>
+                    <a href="{{ Website::href(Website::setting('header_cta_url')) }}" class="whitespace-nowrap rounded-full bg-brand px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-brand/25 transition hover:-translate-y-0.5 hover:bg-brand/90">{{ $ctaLabel }}</a>
                 @endif
             </div>
 
