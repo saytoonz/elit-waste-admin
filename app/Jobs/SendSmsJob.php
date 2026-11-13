@@ -20,6 +20,9 @@ class SendSmsJob implements ShouldQueue
 
     public const PROFILE_CUSTOMER = 'customer';
     public const PROFILE_PROVIDER = 'provider';
+    // Non-essential customer SMS (payment reminders): metered like PROFILE_CUSTOMER,
+    // but may not dip into the bundle's reserve, which is kept for transactional SMS.
+    public const PROFILE_REMINDER = 'reminder';
 
     public function __construct(
         public string $phone,
@@ -68,8 +71,11 @@ class SendSmsJob implements ShouldQueue
         // 1 credit per 160 characters (161 chars = 2 credits, etc.)
         $credits = SmsBundle::creditsFor($this->message);
 
-        if (!$bundle->consume($credits)) {
-            Log::warning("SMS skipped — bundle #{$bundle->id} lacks {$credits} credit(s), or is exhausted/expired ({$this->phone})");
+        $reserve = $this->profile === self::PROFILE_REMINDER ? $bundle->reminderReserve() : 0;
+
+        if (!$bundle->consume($credits, $reserve)) {
+            $why = $reserve > 0 ? " above the {$reserve}-credit reserve for transactional SMS" : '';
+            Log::warning("SMS skipped ({$this->profile}) — bundle #{$bundle->id} lacks {$credits} credit(s){$why}, or is exhausted/expired ({$this->phone})");
             $this->recordBroadcastOutcome('skipped', 0, "Needs {$credits} credit(s) — bundle exhausted, expired, or short.");
             return;
         }

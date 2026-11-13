@@ -79,11 +79,40 @@ class BillingConfig
         self::upsert(self::KEY_LAST_RUN, $date);
     }
 
+    /** Default reminder window when no setting is stored. */
+    public const DEFAULT_MAX_DAYS = 14;
+
+    /** While overdue, remind every this many days. */
+    public const OVERDUE_EVERY_DAYS = 3;
+
     /** Stop reminding an invoice this many days after it was billed. 0 = unlimited. */
     public static function maxDays(): int
     {
         $v = Setting::safeValue(self::KEY_MAX_DAYS);
-        return $v === null ? 0 : max(0, (int) $v);
+        return $v === null ? self::DEFAULT_MAX_DAYS : max(0, (int) $v);
+    }
+
+    /**
+     * Whether an invoice is on a reminder day: 1 day after billing, on its due
+     * date, then every OVERDUE_EVERY_DAYS days while overdue (the maxDays
+     * window is applied separately). Without a due date: day 1, then every
+     * OVERDUE_EVERY_DAYS days.
+     */
+    public static function isReminderDay(Carbon $billedOn, ?Carbon $dueDate, Carbon $today): bool
+    {
+        $age = (int) $billedOn->copy()->startOfDay()->diffInDays($today->copy()->startOfDay(), false);
+        if ($age < 1) return false;
+        if ($age === 1) return true;
+
+        if ($dueDate === null) {
+            return $age % self::OVERDUE_EVERY_DAYS === 0;
+        }
+
+        $untilDue = (int) $today->copy()->startOfDay()->diffInDays($dueDate->copy()->startOfDay(), false);
+        if ($untilDue === 0) return true;
+        if ($untilDue > 0) return false;
+
+        return abs($untilDue) % self::OVERDUE_EVERY_DAYS === 0;
     }
 
     /** Optional per-cycle SMS template; null falls back to the service default. */

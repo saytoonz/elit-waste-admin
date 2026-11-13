@@ -42,6 +42,42 @@ class BillingReminderService
         return trim(strtr($template, $replacements));
     }
 
+    /**
+     * One consolidated reminder for all of a customer's unpaid invoices: total
+     * balance, earliest due date. Null if there's no phone or no invoices.
+     *
+     * @param \Illuminate\Support\Collection<int, Invoice> $invoices same customer
+     */
+    public function messageForCustomer($invoices): ?string
+    {
+        if ($invoices->isEmpty()) return null;
+        if ($invoices->count() === 1) return $this->messageFor($invoices->first());
+
+        $customer = $invoices->first()->customer;
+        if (! $customer || ! $customer->phone) {
+            return null;
+        }
+
+        $sorted   = $invoices->sortBy(fn($i) => $i->due_date ? Carbon::parse($i->due_date)->timestamp : PHP_INT_MAX)->values();
+        $earliest = $sorted->first();
+        $due      = $earliest->due_date ? Carbon::parse($earliest->due_date) : null;
+        $cycle    = $earliest->subscription->billing_cycle ?? 'Monthly';
+        $others   = $sorted->count() - 1;
+
+        $replacements = [
+            '{company}'  => $this->companyName(),
+            '{name}'     => $this->firstName($customer->name),
+            '{amount}'   => 'GHS ' . number_format((float) $invoices->sum('balance_due'), 2),
+            '{invoice}'  => $earliest->invoice_number . " + {$others} more",
+            '{due_date}' => $due ? $due->format('D, d M Y') : 'soon',
+            '{days}'     => $this->daysPhrase($due),
+        ];
+
+        $template = BillingConfig::template($cycle) ?? $this->defaultTemplate();
+
+        return trim(strtr($template, $replacements));
+    }
+
     protected function defaultTemplate(): string
     {
         return '{company}: Hi {name}, your bill of {amount} (Invoice {invoice}) is {days} — due {due_date}. Please pay to keep your waste collection active.';

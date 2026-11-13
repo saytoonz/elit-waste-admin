@@ -11,8 +11,11 @@ use Carbon\Carbon;
 use Illuminate\Console\Command;
 
 /**
- * Daily SMS reminder to customers with an unpaid subscription bill — sends every
- * day from the day after billing until the invoice is paid (including overdue).
+ * SMS reminder to customers with an unpaid subscription bill — one message per
+ * customer, sent on reminder days only (day after billing, due date, then every
+ * few days while overdue; see BillingConfig::isReminderDay) and only within the
+ * maxDays window. Uses the reminder SMS profile, so it never spends the credit
+ * reserve kept for payment confirmations and invoice notices.
  *
  * Scope guard: ONLY invoices created at/after BillingConfig::since() are ever
  * reminded, so the pre-existing backlog is never texted. Day 0 (the billing day)
@@ -64,19 +67,31 @@ class SendBillingReminders extends Command
 
         $invoices = $query->get();
 
+        // One SMS per customer, and only on a reminder day (day 1, due date, every
+        // few days while overdue) for at least one of their unpaid invoices.
         $sent = 0;
         $skipped = 0;
-        foreach ($invoices as $invoice) {
-            $message = $reminders->messageFor($invoice);
+        foreach ($invoices->groupBy('customer_id') as $customerInvoices) {
+            $due = $customerInvoices->contains(fn($i) => BillingConfig::isReminderDay(
+                Carbon::parse($i->created_at),
+                $i->due_date ? Carbon::parse($i->due_date) : null,
+                $today,
+            ));
+            if (! $due) {
+                continue;
+            }
+
+            $message = $reminders->messageForCustomer($customerInvoices);
             if ($message === null) {
                 $skipped++;
                 continue;
             }
 
+            $phone = $customerInvoices->first()->customer->phone;
             if ($dryRun) {
-                $this->line("→ {$invoice->customer->phone}: {$message}");
+                $this->line("→ {$phone}: {$message}");
             } else {
-                SendSmsJob::dispatch($invoice->customer->phone, $message);
+                SendSmsJob::dispatch($phone, $message, SendSmsJob::PROFILE_REMINDER);
             }
             $sent++;
         }

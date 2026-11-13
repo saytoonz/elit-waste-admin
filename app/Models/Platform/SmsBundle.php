@@ -68,6 +68,19 @@ class SmsBundle extends Model
         return $this->remaining > 0;
     }
 
+    /**
+     * Credits held back from reminder SMS so transactional messages (payment
+     * confirmations, new-invoice notices) can still go out when reminders have
+     * drained the bundle: 10% of the bundle, at least 20 credits.
+     */
+    public const REMINDER_RESERVE_PERCENT = 10;
+    public const REMINDER_RESERVE_MIN = 20;
+
+    public function reminderReserve(): int
+    {
+        return max(self::REMINDER_RESERVE_MIN, (int) ceil($this->quantity_total * self::REMINDER_RESERVE_PERCENT / 100));
+    }
+
     /** One SMS credit covers up to this many characters; longer messages cost extra credits. */
     public const CHARS_PER_CREDIT = 160;
 
@@ -88,11 +101,12 @@ class SmsBundle extends Model
      * Uses a SELECT ... FOR UPDATE row lock inside a transaction to avoid
      * concurrent overshoot when multiple SMS jobs race.
      */
-    public function consume(int $credits = 1): bool
+    public function consume(int $credits = 1, int $reserve = 0): bool
     {
         $credits = max(1, $credits);
+        $reserve = max(0, $reserve);
 
-        return DB::transaction(function () use ($credits) {
+        return DB::transaction(function () use ($credits, $reserve) {
             $fresh = static::where('id', $this->id)->lockForUpdate()->first();
             if (!$fresh) return false;
 
@@ -105,8 +119,8 @@ class SmsBundle extends Model
                 $fresh->update(['status' => 'Exhausted']);
                 return false;
             }
-            if ($fresh->quantity_total - $fresh->quantity_used < $credits) {
-                // Not enough left for this message — leave the remainder untouched
+            if ($fresh->quantity_total - $fresh->quantity_used - $reserve < $credits) {
+                // Not enough left for this message (above the reserve) — leave the remainder untouched
                 return false;
             }
 
